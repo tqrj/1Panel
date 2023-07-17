@@ -1,7 +1,7 @@
 <template>
     <div v-if="persistenceShow">
         <el-row :gutter="20" style="margin-top: 5px" class="row-box">
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
                 <el-card class="el-card">
                     <template #header>
                         <div class="card-header">
@@ -36,7 +36,7 @@
                     </el-form>
                 </el-card>
             </el-col>
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
                 <el-card class="el-card">
                     <template #header>
                         <div class="card-header">
@@ -81,7 +81,7 @@
         <el-card style="margin-top: 20px">
             <ComplexTable :pagination-config="paginationConfig" v-model:selects="selects" @search="search" :data="data">
                 <template #toolbar>
-                    <el-button type="primary" @click="onBackup">{{ $t('setting.backup') }}</el-button>
+                    <el-button type="primary" @click="onBackup">{{ $t('commons.button.backup') }}</el-button>
                     <el-button type="primary" plain :disabled="selects.length === 0" @click="onBatchDelete(null)">
                         {{ $t('commons.button.delete') }}
                     </el-button>
@@ -112,7 +112,6 @@
 </template>
 
 <script lang="ts" setup>
-import ComplexTable from '@/components/complex-table/index.vue';
 import ConfirmDialog from '@/components/confirm-dialog/index.vue';
 import { Database } from '@/api/interface/database';
 import { redisPersistenceConf, updateRedisPersistenceConf } from '@/api/modules/database';
@@ -201,6 +200,7 @@ const onBackup = async () => {
 };
 const onRecover = async () => {
     let param = {
+        source: currentRow.value.source,
         type: 'redis',
         name: '',
         detailName: '',

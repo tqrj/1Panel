@@ -2,12 +2,14 @@ package migrations
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/1Panel-dev/1Panel/backend/app/model"
 	"github.com/1Panel-dev/1Panel/backend/constant"
 	"github.com/1Panel-dev/1Panel/backend/global"
 	"github.com/1Panel-dev/1Panel/backend/utils/common"
+	"github.com/1Panel-dev/1Panel/backend/utils/encrypt"
 
 	"github.com/go-gormigrate/gormigrate/v2"
 	"gorm.io/gorm"
@@ -61,10 +63,13 @@ var AddTableSetting = &gormigrate.Migration{
 		if err := tx.AutoMigrate(&model.Setting{}); err != nil {
 			return err
 		}
-		if err := tx.Create(&model.Setting{Key: "UserName", Value: ""}).Error; err != nil {
+		encryptKey := common.RandStr(16)
+		if err := tx.Create(&model.Setting{Key: "UserName", Value: global.CONF.System.Username}).Error; err != nil {
 			return err
 		}
-		if err := tx.Create(&model.Setting{Key: "Password", Value: ""}).Error; err != nil {
+		global.CONF.System.EncryptKey = encryptKey
+		pass, _ := encrypt.StringEncrypt(global.CONF.System.Password)
+		if err := tx.Create(&model.Setting{Key: "Password", Value: pass}).Error; err != nil {
 			return err
 		}
 		if err := tx.Create(&model.Setting{Key: "Email", Value: ""}).Error; err != nil {
@@ -91,13 +96,13 @@ var AddTableSetting = &gormigrate.Migration{
 		if err := tx.Create(&model.Setting{Key: "ServerPort", Value: global.CONF.System.Port}).Error; err != nil {
 			return err
 		}
-		if err := tx.Create(&model.Setting{Key: "SecurityEntrance", Value: "onepanel"}).Error; err != nil {
+		if err := tx.Create(&model.Setting{Key: "SecurityEntrance", Value: global.CONF.System.Entrance}).Error; err != nil {
 			return err
 		}
 		if err := tx.Create(&model.Setting{Key: "JWTSigningKey", Value: common.RandStr(16)}).Error; err != nil {
 			return err
 		}
-		if err := tx.Create(&model.Setting{Key: "EncryptKey", Value: common.RandStr(16)}).Error; err != nil {
+		if err := tx.Create(&model.Setting{Key: "EncryptKey", Value: encryptKey}).Error; err != nil {
 			return err
 		}
 
@@ -245,5 +250,232 @@ var AddDefaultGroup = &gormigrate.Migration{
 			return err
 		}
 		return tx.Migrator().DropTable("website_groups")
+	},
+}
+
+var AddTableRuntime = &gormigrate.Migration{
+	ID: "20230406-add-table-runtime",
+	Migrate: func(tx *gorm.DB) error {
+		return tx.AutoMigrate(&model.Runtime{})
+	},
+}
+
+var UpdateTableApp = &gormigrate.Migration{
+	ID: "20230408-update-table-app",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.AutoMigrate(&model.App{}); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var UpdateTableHost = &gormigrate.Migration{
+	ID: "20230410-update-table-host",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.AutoMigrate(&model.Host{}); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var UpdateTableWebsite = &gormigrate.Migration{
+	ID: "20230418-update-table-website",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.AutoMigrate(&model.Website{}); err != nil {
+			return err
+		}
+		if err := tx.Model(&model.Website{}).Where("1 = 1").Update("site_dir", "/").Error; err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var AddEntranceAndSSL = &gormigrate.Migration{
+	ID: "20230414-add-entrance-and-ssl",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Setting{}).
+			Where("key = ? AND value = ?", "SecurityEntrance", "onepanel").
+			Updates(map[string]interface{}{"value": ""}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&model.Setting{Key: "SSLType", Value: "self"}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&model.Setting{Key: "SSLID", Value: "0"}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&model.Setting{Key: "SSL", Value: "disable"}).Error; err != nil {
+			return err
+		}
+		return tx.AutoMigrate(&model.Website{})
+	},
+}
+
+var UpdateTableSetting = &gormigrate.Migration{
+	ID: "20200516-update-table-setting",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.Create(&model.Setting{Key: "AppStoreLastModified", Value: "0"}).Error; err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var UpdateTableAppDetail = &gormigrate.Migration{
+	ID: "20200517-update-table-app-detail",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.AutoMigrate(&model.App{}); err != nil {
+			return err
+		}
+		if err := tx.AutoMigrate(&model.AppDetail{}); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var AddBindAndAllowIPs = &gormigrate.Migration{
+	ID: "20230517-add-bind-and-allow",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.Create(&model.Setting{Key: "BindDomain", Value: ""}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&model.Setting{Key: "AllowIPs", Value: ""}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&model.Setting{Key: "TimeZone", Value: common.LoadTimeZoneByCmd()}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&model.Setting{Key: "NtpSite", Value: "pool.ntp.org"}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&model.Setting{Key: "MonitorInterval", Value: "1"}).Error; err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var UpdateCronjobWithSecond = &gormigrate.Migration{
+	ID: "20200524-update-table-cronjob",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.AutoMigrate(&model.Cronjob{}); err != nil {
+			return err
+		}
+		var jobs []model.Cronjob
+		if err := tx.Where("exclusion_rules != ?", "").Find(&jobs).Error; err != nil {
+			return err
+		}
+		for _, job := range jobs {
+			if strings.Contains(job.ExclusionRules, ";") {
+				newRules := strings.ReplaceAll(job.ExclusionRules, ";", ",")
+				if err := tx.Model(&model.Cronjob{}).Where("id = ?", job.ID).Update("exclusion_rules", newRules).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	},
+}
+
+var UpdateWebsite = &gormigrate.Migration{
+	ID: "20200530-update-table-website",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.AutoMigrate(&model.Website{}); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var AddBackupAccountDir = &gormigrate.Migration{
+	ID: "20200620-add-backup-dir",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.AutoMigrate(&model.BackupAccount{}, &model.Cronjob{}); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var AddMfaInterval = &gormigrate.Migration{
+	ID: "20230625-add-mfa-interval",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.Create(&model.Setting{Key: "MFAInterval", Value: "30"}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&model.Setting{Key: "SystemIP", Value: ""}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&model.Setting{Key: "OneDriveID", Value: "MDEwOTM1YTktMWFhOS00ODU0LWExZGMtNmU0NWZlNjI4YzZi"}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&model.Setting{Key: "OneDriveSc", Value: "akpuOFF+YkNXOU1OLWRzS1ZSRDdOcG1LT2ZRM0RLNmdvS1RkVWNGRA=="}).Error; err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var UpdateAppDetail = &gormigrate.Migration{
+	ID: "20230704-update-app-detail",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.AutoMigrate(&model.AppDetail{}); err != nil {
+			return err
+		}
+		if err := tx.Model(&model.AppDetail{}).Where("1 = 1").Update("ignore_upgrade", "0").Error; err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var EncryptHostPassword = &gormigrate.Migration{
+	ID: "20230703-encrypt-host-password",
+	Migrate: func(tx *gorm.DB) error {
+		var hosts []model.Host
+		if err := tx.Where("1 = 1").Find(&hosts).Error; err != nil {
+			return err
+		}
+
+		var encryptSetting model.Setting
+		if err := tx.Where("key = ?", "EncryptKey").Find(&encryptSetting).Error; err != nil {
+			return err
+		}
+		global.CONF.System.EncryptKey = encryptSetting.Value
+
+		for _, host := range hosts {
+			if len(host.Password) != 0 {
+				pass, err := encrypt.StringEncrypt(host.Password)
+				if err != nil {
+					return err
+				}
+				if err := tx.Model(&model.Host{}).Where("id = ?", host.ID).Update("password", pass).Error; err != nil {
+					return err
+				}
+			}
+			if len(host.PrivateKey) != 0 {
+				key, err := encrypt.StringEncrypt(host.PrivateKey)
+				if err != nil {
+					return err
+				}
+				if err := tx.Model(&model.Host{}).Where("id = ?", host.ID).Update("private_key", key).Error; err != nil {
+					return err
+				}
+			}
+			if len(host.PassPhrase) != 0 {
+				pass, err := encrypt.StringEncrypt(host.PassPhrase)
+				if err != nil {
+					return err
+				}
+				if err := tx.Model(&model.Host{}).Where("id = ?", host.ID).Update("pass_phrase", pass).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
 	},
 }

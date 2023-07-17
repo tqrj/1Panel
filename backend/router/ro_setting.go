@@ -23,10 +23,13 @@ func (s *SettingRouter) InitSettingRouter(Router *gin.RouterGroup) {
 		settingRouter.GET("/search/available", baseApi.GetSystemAvailable)
 		settingRouter.POST("/update", baseApi.UpdateSetting)
 		settingRouter.POST("/port/update", baseApi.UpdatePort)
+		settingRouter.POST("/ssl/update", baseApi.UpdateSSL)
+		settingRouter.GET("/ssl/info", baseApi.LoadFromCert)
 		settingRouter.POST("/password/update", baseApi.UpdatePassword)
+		settingRouter.GET("/time/option", baseApi.LoadTimeZone)
 		settingRouter.POST("/time/sync", baseApi.SyncTime)
 		settingRouter.POST("/monitor/clean", baseApi.CleanMonitor)
-		settingRouter.GET("/mfa", baseApi.GetMFA)
+		settingRouter.GET("/mfa/:interval", baseApi.GetMFA)
 		settingRouter.POST("/mfa/bind", baseApi.MFABind)
 
 		settingRouter.POST("/snapshot", baseApi.CreateSnapshot)
@@ -38,6 +41,7 @@ func (s *SettingRouter) InitSettingRouter(Router *gin.RouterGroup) {
 		settingRouter.POST("/snapshot/description/update", baseApi.UpdateSnapDescription)
 
 		settingRouter.GET("/backup/search", baseApi.ListBackup)
+		settingRouter.GET("/backup/onedrive", baseApi.LoadOneDriveInfo)
 		settingRouter.POST("/backup/backup", baseApi.Backup)
 		settingRouter.POST("/backup/recover", baseApi.Recover)
 		settingRouter.POST("/backup/recover/byupload", baseApi.RecoverByUpload)

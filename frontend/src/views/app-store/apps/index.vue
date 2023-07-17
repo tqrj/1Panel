@@ -1,8 +1,8 @@
 <template>
-    <LayoutContent v-loading="loading" v-if="!showDetail" :title="$t('app.app')" :divider="true">
+    <LayoutContent v-loading="loading" v-if="!showDetail" :title="$t('app.app')">
         <template #toolbar>
             <el-row :gutter="5">
-                <el-col :span="20">
+                <el-col :xs="24" :sm="20" :md="20" :lg="20" :xl="20">
                     <el-button
                         class="tag-button"
                         :class="activeTag === 'all' ? '' : 'no-active'"
@@ -20,19 +20,18 @@
                             :type="activeTag === item.key ? 'primary' : ''"
                             :plain="activeTag !== item.key"
                         >
-                            {{ language == 'zh' ? item.name : item.key }}
+                            {{ language == 'zh' || language == 'tw' ? item.name : item.key }}
                         </el-button>
                     </div>
                 </el-col>
-                <el-col :span="4">
+                <el-col :xs="24" :sm="4" :md="4" :lg="4" :xl="4">
                     <div class="search-button">
                         <el-input
                             v-model="req.name"
                             clearable
                             @clear="searchByName('')"
                             suffix-icon="Search"
-                            @keyup.enter="searchByName(req.name)"
-                            @blur="searchByName(req.name)"
+                            @change="searchByName(req.name)"
                             :placeholder="$t('commons.button.search')"
                         ></el-input>
                     </div>
@@ -45,57 +44,93 @@
             </el-badge>
         </template>
         <template #main>
+            <el-alert type="info" :title="$t('app.appHelper')" :closable="false" />
             <el-row :gutter="5">
-                <el-col v-for="(app, index) in apps" :key="index" :xs="12" :sm="12" :md="8" :lg="8" :xl="8">
+                <el-col
+                    class="app-col-12"
+                    v-for="(app, index) in apps"
+                    :key="index"
+                    :xs="24"
+                    :sm="12"
+                    :md="8"
+                    :lg="8"
+                    :xl="8"
+                >
                     <div class="app-card">
-                        <el-row :gutter="24">
-                            <el-col :xs="5" :sm="5" :md="6" :lg="6" :xl="5">
-                                <div class="app-icon">
-                                    <el-avatar shape="square" :size="60" :src="'data:image/png;base64,' + app.icon" />
-                                </div>
-                            </el-col>
-                            <el-col :xs="19" :sm="19" :md="18" :lg="18" :xl="19">
-                                <div class="app-content">
-                                    <div class="app-header">
-                                        <span class="app-title">{{ app.name }}</span>
-                                        <el-button
-                                            class="app-button"
-                                            type="primary"
-                                            plain
-                                            round
-                                            size="small"
-                                            @click="getAppDetail(app.key)"
-                                        >
-                                            {{ $t('app.install') }}
-                                        </el-button>
+                        <el-card class="e-card">
+                            <el-row :gutter="20">
+                                <el-col :xs="8" :sm="6" :md="6" :lg="6" :xl="5">
+                                    <div class="app-icon">
+                                        <el-avatar
+                                            shape="square"
+                                            :size="60"
+                                            :src="'data:image/png;base64,' + app.icon"
+                                        />
                                     </div>
-                                    <div class="app-desc">
-                                        <span class="desc">
-                                            {{ language == 'zh' ? app.shortDescZh : app.shortDescEn }}
-                                        </span>
+                                </el-col>
+                                <el-col :xs="16" :sm="18" :md="18" :lg="18" :xl="19">
+                                    <div class="app-content">
+                                        <div class="app-header">
+                                            <span class="app-title">{{ app.name }}</span>
+                                            <el-text type="success" style="margin-left: 10px" v-if="app.installed">
+                                                {{ $t('app.allReadyInstalled') }}
+                                            </el-text>
+                                            <el-button
+                                                class="app-button"
+                                                type="primary"
+                                                plain
+                                                round
+                                                size="small"
+                                                @click="getAppDetail(app.key)"
+                                                :disabled="app.status === 'TakeDown'"
+                                            >
+                                                {{ $t('app.install') }}
+                                            </el-button>
+                                        </div>
+                                        <div class="app-desc">
+                                            <span class="desc">
+                                                {{
+                                                    language == 'zh' || language == 'tw'
+                                                        ? app.shortDescZh
+                                                        : app.shortDescEn
+                                                }}
+                                            </span>
+                                        </div>
+                                        <div class="app-tag">
+                                            <el-tag v-for="(tag, ind) in app.tags" :key="ind" style="margin-right: 5px">
+                                                <span :style="{ color: getColor(ind) }">
+                                                    {{ language == 'zh' || language == 'tw' ? tag.name : tag.key }}
+                                                </span>
+                                            </el-tag>
+                                            <el-tag v-if="app.status === 'TakeDown'" style="margin-right: 5px">
+                                                <span style="color: red">{{ $t('app.takeDown') }}</span>
+                                            </el-tag>
+                                        </div>
                                     </div>
-                                    <div class="app-tag">
-                                        <el-tag v-for="(tag, ind) in app.tags" :key="ind" :colr="getColor(ind)">
-                                            {{ language == 'zh' ? tag.name : tag.key }}
-                                        </el-tag>
-                                    </div>
-                                    <div class="divider"></div>
-                                </div>
-                            </el-col>
-                        </el-row>
+                                </el-col>
+                            </el-row>
+                        </el-card>
                     </div>
                 </el-col>
             </el-row>
+            <div class="page-button">
+                <fu-table-pagination
+                    v-model:current-page="paginationConfig.currentPage"
+                    v-model:page-size="paginationConfig.pageSize"
+                    v-bind="paginationConfig"
+                    @change="search(req)"
+                    :layout="'total, sizes, prev, pager, next, jumper'"
+                />
+            </div>
         </template>
     </LayoutContent>
     <Detail v-if="showDetail" :id="appId"></Detail>
 </template>
 
 <script lang="ts" setup>
-import LayoutContent from '@/layout/layout-content.vue';
 import { App } from '@/api/interface/app';
 import { onMounted, reactive, ref } from 'vue';
-import { GetAppListUpdate, GetAppTags, SearchApp, SyncApp } from '@/api/modules/app';
+import { GetAppTags, SearchApp, SyncApp } from '@/api/modules/app';
 import i18n from '@/lang';
 import Detail from '../detail/index.vue';
 import router from '@/routers';
@@ -104,21 +139,27 @@ import { useI18n } from 'vue-i18n';
 
 const language = useI18n().locale.value;
 
-let req = reactive({
+const paginationConfig = reactive({
+    currentPage: 1,
+    pageSize: 50,
+    total: 0,
+});
+
+const req = reactive({
     name: '',
     tags: [],
     page: 1,
     pageSize: 50,
 });
 
-let apps = ref<App.App[]>([]);
-let tags = ref<App.Tag[]>([]);
-const colorArr = ['#6495ED', '#54FF9F', '#BEBEBE', '#FFF68F', '#FFFF00', '#8B0000'];
-let loading = ref(false);
-let activeTag = ref('all');
-let showDetail = ref(false);
-let appId = ref(0);
-let canUpdate = ref(false);
+const apps = ref<App.AppDTO[]>([]);
+const tags = ref<App.Tag[]>([]);
+const colorArr = ['#005eeb', '#008B45', '#BEBEBE', '#FFF68F', '#FFFF00', '#8B0000'];
+const loading = ref(false);
+const activeTag = ref('all');
+const showDetail = ref(false);
+const appId = ref(0);
+const canUpdate = ref(false);
 
 const getColor = (index: number) => {
     return colorArr[index];
@@ -126,9 +167,12 @@ const getColor = (index: number) => {
 
 const search = async (req: App.AppReq) => {
     loading.value = true;
+    req.pageSize = paginationConfig.pageSize;
+    req.page = paginationConfig.currentPage;
     await SearchApp(req)
         .then((res) => {
             apps.value = res.data.items;
+            paginationConfig.total = res.data.total;
         })
         .finally(() => {
             loading.value = false;
@@ -143,21 +187,15 @@ const getAppDetail = (key: string) => {
 };
 
 const sync = () => {
-    loading.value = true;
-    SyncApp()
-        .then(() => {
-            MsgSuccess(i18n.global.t('app.syncSuccess'));
-            canUpdate.value = false;
-            search(req);
-        })
-        .finally(() => {
-            loading.value = false;
-        });
-};
-
-const getAppListUpdate = async () => {
-    const res = await GetAppListUpdate();
-    canUpdate.value = res.data.canUpdate;
+    SyncApp().then((res) => {
+        if (res.message != '') {
+            MsgSuccess(res.message);
+        } else {
+            MsgSuccess(i18n.global.t('app.syncStart'));
+        }
+        canUpdate.value = false;
+        search(req);
+    });
 };
 
 const changeTag = (key: string) => {
@@ -175,7 +213,6 @@ const searchByName = (name: string) => {
 };
 
 onMounted(() => {
-    getAppListUpdate();
     search(req);
 });
 </script>
@@ -233,8 +270,13 @@ onMounted(() => {
             margin-top: 5px;
         }
     }
-    &:hover {
-        background-color: rgba(0, 94, 235, 0.03);
+
+    .e-card {
+        border: var(--panel-border) !important;
+        &:hover {
+            cursor: pointer;
+            border: 1px solid var(--el-color-primary) !important;
+        }
     }
 }
 
@@ -243,6 +285,19 @@ onMounted(() => {
     &.no-active {
         background: none;
         border: none;
+    }
+}
+
+.page-button {
+    float: right;
+    margin-bottom: 10px;
+    margin-top: 10px;
+}
+
+@media only screen and (min-width: 768px) and (max-width: 1200px) {
+    .app-col-12 {
+        max-width: 50%;
+        flex: 0 0 50%;
     }
 }
 </style>

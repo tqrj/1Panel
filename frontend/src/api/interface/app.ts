@@ -11,10 +11,12 @@ export namespace App {
         author: string;
         source: string;
         type: string;
+        status: string;
     }
 
     export interface AppDTO extends App {
         versions: string[];
+        installed: boolean;
     }
 
     export interface Tag {
@@ -24,7 +26,7 @@ export namespace App {
 
     export interface AppResPage {
         total: number;
-        items: App.App[];
+        items: App.AppDTO[];
     }
 
     export interface AppUpdateRes {
@@ -39,7 +41,7 @@ export namespace App {
         readme: string;
         params: AppParams;
         dockerCompose: string;
-        enbale: boolean;
+        image: string;
     }
 
     export interface AppReq extends ReqPage {
@@ -64,6 +66,7 @@ export namespace App {
         values?: ServiceParam[];
         child?: FromFieldChild;
         params?: FromParam[];
+        multiple?: boolean;
     }
 
     export interface FromFieldChild extends FromField {
@@ -109,6 +112,7 @@ export namespace App {
         message: string;
         icon: string;
         canUpdate: boolean;
+        path: string;
         app: App;
     }
 
@@ -125,6 +129,11 @@ export namespace App {
         installPath: string;
     }
 
+    export interface DatabaseConnInfo {
+        password: string;
+        serviceName: string;
+        port: number;
+    }
     export interface AppInstallResource {
         type: string;
         name: string;
@@ -165,5 +174,24 @@ export namespace App {
         type: string;
         values?: any;
         showValue?: string;
+        required?: boolean;
+        multiple?: boolean;
+    }
+
+    export interface AppConfig {
+        params: InstallParams[];
+        cpuQuota: number;
+        memoryLimit: number;
+        memoryUnit: string;
+        containerName: string;
+        allowPort: boolean;
+        dockerCompose: string;
+    }
+
+    export interface IgnoredApp {
+        name: string;
+        detailID: number;
+        version: string;
+        icon: string;
     }
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/1Panel-dev/1Panel/backend/buserr"
 	"github.com/1Panel-dev/1Panel/backend/constant"
 	"github.com/1Panel-dev/1Panel/backend/utils/docker"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 )
@@ -25,11 +24,11 @@ func (u *ContainerService) PageVolume(req dto.SearchWithPage) (int64, interface{
 		return 0, nil, err
 	}
 	if len(req.Info) != 0 {
-		lenth, count := len(list.Volumes), 0
-		for count < lenth {
+		length, count := len(list.Volumes), 0
+		for count < length {
 			if !strings.Contains(list.Volumes[count].Name, req.Info) {
 				list.Volumes = append(list.Volumes[:count], list.Volumes[(count+1):]...)
-				lenth--
+				length--
 			} else {
 				count++
 			}
@@ -37,14 +36,14 @@ func (u *ContainerService) PageVolume(req dto.SearchWithPage) (int64, interface{
 	}
 	var (
 		data    []dto.Volume
-		records []*types.Volume
+		records []*volume.Volume
 	)
 	sort.Slice(list.Volumes, func(i, j int) bool {
 		return list.Volumes[i].CreatedAt > list.Volumes[j].CreatedAt
 	})
 	total, start, end := len(list.Volumes), (req.Page-1)*req.PageSize, req.Page*req.PageSize
 	if start > total {
-		records = make([]*types.Volume, 0)
+		records = make([]*volume.Volume, 0)
 	} else {
 		if end >= total {
 			end = total
@@ -81,13 +80,16 @@ func (u *ContainerService) ListVolume() ([]dto.Options, error) {
 	if err != nil {
 		return nil, err
 	}
-	var data []dto.Options
+	var datas []dto.Options
 	for _, item := range list.Volumes {
-		data = append(data, dto.Options{
+		datas = append(datas, dto.Options{
 			Option: item.Name,
 		})
 	}
-	return data, nil
+	sort.Slice(datas, func(i, j int) bool {
+		return datas[i].Option < datas[j].Option
+	})
+	return datas, nil
 }
 func (u *ContainerService) DeleteVolume(req dto.BatchDelete) error {
 	client, err := docker.NewDockerClient()
@@ -104,7 +106,7 @@ func (u *ContainerService) DeleteVolume(req dto.BatchDelete) error {
 	}
 	return nil
 }
-func (u *ContainerService) CreateVolume(req dto.VolumeCreat) error {
+func (u *ContainerService) CreateVolume(req dto.VolumeCreate) error {
 	client, err := docker.NewDockerClient()
 	if err != nil {
 		return err
@@ -119,7 +121,7 @@ func (u *ContainerService) CreateVolume(req dto.VolumeCreat) error {
 			}
 		}
 	}
-	options := volume.VolumeCreateBody{
+	options := volume.CreateOptions{
 		Name:       req.Name,
 		Driver:     req.Driver,
 		DriverOpts: stringsToMap(req.Options),

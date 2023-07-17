@@ -23,7 +23,7 @@
                                 @clear="search()"
                                 suffix-icon="Search"
                                 @keyup.enter="search()"
-                                @blur="search()"
+                                @change="search()"
                                 :placeholder="$t('commons.button.search')"
                             ></el-input>
                         </div>
@@ -45,7 +45,7 @@
                         min-width="100"
                         fix
                     />
-                    <el-table-column :label="$t('container.protocol')" prop="protocol" min-width="60" fix />
+                    <el-table-column :label="$t('commons.table.protocol')" prop="protocol" min-width="60" fix />
                     <el-table-column :label="$t('commons.table.status')" prop="status" min-width="60" fix>
                         <template #default="{ row }">
                             <el-tag v-if="row.status === 'Success'" type="success">
@@ -66,7 +66,7 @@
                         fix
                         :formatter="dateFormat"
                     />
-                    <fu-table-operations :buttons="buttons" :label="$t('commons.table.operate')" />
+                    <fu-table-operations width="200px" :buttons="buttons" :label="$t('commons.table.operate')" />
                 </ComplexTable>
             </template>
         </LayoutContent>
@@ -75,8 +75,6 @@
 </template>
 
 <script lang="ts" setup>
-import LayoutContent from '@/layout/layout-content.vue';
-import ComplexTable from '@/components/complex-table/index.vue';
 import TableSetting from '@/components/table-setting/index.vue';
 import OperatorDialog from '@/views/container/repo/operator/index.vue';
 import { reactive, onMounted, ref } from 'vue';
@@ -174,6 +172,9 @@ const onCheckConn = async (row: Container.RepoInfo) => {
 const buttons = [
     {
         label: i18n.global.t('commons.button.sync'),
+        disabled: (row: Container.RepoInfo) => {
+            return row.downloadUrl === 'docker.io';
+        },
         click: (row: Container.RepoInfo) => {
             onCheckConn(row);
         },

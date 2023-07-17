@@ -2,10 +2,13 @@ package db
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
-	"gorm.io/driver/sqlite"
+	"gorm.io/gorm/logger"
+
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 
 	"github.com/1Panel-dev/1Panel/backend/global"
@@ -24,8 +27,19 @@ func Init() {
 		}
 	}
 
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             time.Second,
+			LogLevel:                  logger.Silent,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  false,
+		},
+	)
+
 	db, err := gorm.Open(sqlite.Open(fullPath), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
+		Logger:                                   newLogger,
 	})
 	if err != nil {
 		panic(err)

@@ -3,12 +3,18 @@
         <LayoutContent v-loading="loading" :title="$t('logs.operation')">
             <template #toolbar>
                 <el-row>
-                    <el-col :span="16">
-                        <el-button type="primary" plain @click="onClean()">
-                            {{ $t('logs.deleteLogs') }}
+                    <el-col :xs="24" :sm="16" :md="16" :lg="16" :xl="16">
+                        <el-button type="primary" @click="onChangeRoute('OperationLog')">
+                            {{ $t('logs.operation') }}
+                        </el-button>
+                        <el-button class="no-active-button" @click="onChangeRoute('LoginLog')">
+                            {{ $t('logs.login') }}
+                        </el-button>
+                        <el-button class="no-active-button" @click="onChangeRoute('SystemLog')">
+                            {{ $t('logs.system') }}
                         </el-button>
                     </el-col>
-                    <el-col :span="8">
+                    <el-col :xs="24" :sm="8" :md="8" :lg="8" :xl="8">
                         <TableSetting @search="search()" />
                         <div class="search-button">
                             <el-input
@@ -17,7 +23,7 @@
                                 @clear="search()"
                                 suffix-icon="Search"
                                 @keyup.enter="search()"
-                                @blur="search()"
+                                @change="search()"
                                 :placeholder="$t('commons.button.search')"
                             ></el-input>
                         </div>
@@ -44,6 +50,9 @@
                     <el-option :label="$t('commons.status.success')" value="Success"></el-option>
                     <el-option :label="$t('commons.status.failed')" value="Failed"></el-option>
                 </el-select>
+                <el-button type="primary" style="margin-left: 10px" plain @click="onClean()">
+                    {{ $t('logs.deleteLogs') }}
+                </el-button>
             </template>
             <template #main>
                 <ComplexTable :pagination-config="paginationConfig" :data="data" @search="search">
@@ -56,7 +65,9 @@
                     </el-table-column>
                     <el-table-column :label="$t('logs.operate')" min-width="150px" prop="detailZH">
                         <template #default="{ row }">
-                            <span v-if="globalStore.language === 'zh'">{{ row.detailZH }}</span>
+                            <span v-if="globalStore.language === 'zh' || globalStore.language === 'tw'">
+                                {{ row.detailZH }}
+                            </span>
                             <span v-if="globalStore.language === 'en'">{{ row.detailEN }}</span>
                         </template>
                     </el-table-column>
@@ -96,16 +107,16 @@
 </template>
 
 <script setup lang="ts">
-import ComplexTable from '@/components/complex-table/index.vue';
 import TableSetting from '@/components/table-setting/index.vue';
 import ConfirmDialog from '@/components/confirm-dialog/index.vue';
 import { dateFormat } from '@/utils/util';
-import LayoutContent from '@/layout/layout-content.vue';
 import { cleanLogs, getOperationLogs } from '@/api/modules/log';
 import { onMounted, reactive, ref } from '@vue/runtime-core';
 import i18n from '@/lang';
 import { MsgSuccess } from '@/utils/message';
 import { GlobalStore } from '@/store';
+import { useRouter } from 'vue-router';
+const router = useRouter();
 
 const loading = ref();
 const data = ref();
@@ -134,7 +145,7 @@ const search = async () => {
         .then((res) => {
             loading.value = false;
             data.value = res.data.items || [];
-            if (globalStore.language === 'zh') {
+            if (globalStore.language === 'zh' || globalStore.language === 'tw') {
                 for (const item of data.value) {
                     item.detailZH = loadDetail(item.detailZH);
                 }
@@ -155,6 +166,10 @@ const onClean = async () => {
     confirmDialogRef.value!.acceptParams(params);
 };
 
+const onChangeRoute = async (addr: string) => {
+    router.push({ name: addr });
+};
+
 const loadDetail = (log: string) => {
     if (log.indexOf('[enable]') !== -1) {
         log = log.replace('[enable]', '[' + i18n.global.t('commons.button.enable') + ']');
@@ -168,8 +183,14 @@ const loadDetail = (log: string) => {
     if (log.indexOf('[dark]') !== -1) {
         log = log.replace('[dark]', '[' + i18n.global.t('setting.dark') + ']');
     }
+    if (log.indexOf('[delete]') !== -1) {
+        log = log.replace('[delete]', '[' + i18n.global.t('commons.button.delete') + ']');
+    }
+    if (log.indexOf('[get]') !== -1) {
+        log = log.replace('[get]', '[' + i18n.global.t('commons.button.get') + ']');
+    }
     if (log.indexOf('[UserName]') !== -1) {
-        return log.replace('[UserName]', '[' + i18n.global.t('setting.user') + ']');
+        return log.replace('[UserName]', '[' + i18n.global.t('commons.login.username') + ']');
     }
     if (log.indexOf('[PanelName]') !== -1) {
         return log.replace('[PanelName]', '[' + i18n.global.t('setting.title') + ']');
@@ -183,6 +204,9 @@ const loadDetail = (log: string) => {
     if (log.indexOf('[SessionTimeout]') !== -1) {
         return log.replace('[SessionTimeout]', '[' + i18n.global.t('setting.sessionTimeout') + ']');
     }
+    if (log.indexOf('SecurityEntrance') !== -1) {
+        return log.replace('[SecurityEntrance]', '[' + i18n.global.t('setting.entrance') + ']');
+    }
     if (log.indexOf('[ExpirationDays]') !== -1) {
         return log.replace('[ExpirationDays]', '[' + i18n.global.t('setting.expirationTime') + ']');
     }
@@ -193,7 +217,7 @@ const loadDetail = (log: string) => {
         return log.replace('[MFAStatus]', '[' + i18n.global.t('setting.mfa') + ']');
     }
     if (log.indexOf('[MonitorStatus]') !== -1) {
-        return log.replace('[MonitorStatus]', '[' + i18n.global.t('setting.enableMonitor') + ']');
+        return log.replace('[MonitorStatus]', '[' + i18n.global.t('monitor.enableMonitor') + ']');
     }
     if (log.indexOf('[MonitorStoreDays]') !== -1) {
         return log.replace('[MonitorStoreDays]', '[' + i18n.global.t('setting.monitor') + ']');

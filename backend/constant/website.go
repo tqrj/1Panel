@@ -17,6 +17,7 @@ const (
 	Deployment = "deployment"
 	Static     = "static"
 	Proxy      = "proxy"
+	Runtime    = "runtime"
 
 	SSLExisted = "existed"
 	SSLAuto    = "auto"
@@ -37,7 +38,11 @@ const (
 	GetLog     = "get"
 	DisableLog = "disable"
 	EnableLog  = "enable"
+	DeleteLog  = "delete"
 
 	AccessLog = "access.log"
 	ErrorLog  = "error.log"
+
+	ConfigPHP = "php"
+	ConfigFPM = "fpm"
 )

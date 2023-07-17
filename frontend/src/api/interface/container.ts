@@ -9,14 +9,26 @@ export namespace Container {
     export interface ContainerSearch extends ReqPage {
         name: string;
         filters: string;
+        orderBy: string;
+        order: string;
     }
-    export interface ContainerCreate {
+    export interface ResourceLimit {
+        cpu: number;
+        memory: number;
+    }
+    export interface ContainerHelper {
+        containerID: string;
         name: string;
         image: string;
+        forcePull: boolean;
+        network: string;
+        cmdStr: string;
+        memoryItem: number;
         cmd: Array<string>;
         publishAllPorts: boolean;
         exposedPorts: Array<Port>;
         nanoCPUs: number;
+        cpuShares: number;
         memory: number;
         volumes: Array<Volume>;
         autoRemove: boolean;
@@ -27,8 +39,11 @@ export namespace Container {
         restartPolicy: string;
     }
     export interface Port {
-        containerPort: number;
-        hostPort: number;
+        host: string;
+        hostIP: string;
+        containerPort: string;
+        hostPort: string;
+        protocol: string;
     }
     export interface Volume {
         sourceDir: string;
@@ -42,9 +57,18 @@ export namespace Container {
         createTime: string;
         state: string;
         runTime: string;
-
+        ports: Array<string>;
         isFromApp: boolean;
         isFromCompose: boolean;
+
+        hasLoad: boolean;
+        cpuPercent: number;
+        memoryPercent: number;
+    }
+    export interface ContainerListStats {
+        containerID: string;
+        cpuPercent: number;
+        memoryPercent: number;
     }
     export interface ContainerStats {
         cpuPercent: number;
@@ -56,13 +80,17 @@ export namespace Container {
         networkTX: number;
         shotTime: Date;
     }
-    export interface ContainerLogSearch {
-        containerID: string;
-        mode: string;
-    }
     export interface ContainerInspect {
         id: string;
         type: string;
+    }
+    export interface ContainerPrune {
+        pruneType: string;
+        withTagAll: boolean;
+    }
+    export interface ContainerPruneReport {
+        deletedNumber: number;
+        spaceReclaimed: number;
     }
     export interface Options {
         option: string;
@@ -203,6 +231,7 @@ export namespace Container {
         name: string;
         operation: string;
         path: string;
+        withFile: boolean;
     }
     export interface ComposeUpdate {
         name: string;
@@ -241,17 +270,16 @@ export namespace Container {
     export interface DaemonJsonUpdateByFile {
         file: string;
     }
-    export interface DockerOperate {
-        stopSocket: boolean;
-        stopService: boolean;
-        operation: string;
-    }
     export interface DaemonJsonConf {
+        isSwarm: boolean;
         status: string;
         version: string;
         registryMirrors: Array<string>;
         insecureRegistries: Array<string>;
         liveRestore: boolean;
+        iptables: boolean;
         cgroupDriver: string;
+        logMaxSize: string;
+        logMaxFile: string;
     }
 }

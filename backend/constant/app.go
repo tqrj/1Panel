@@ -1,12 +1,17 @@
 package constant
 
 const (
-	Running    = "Running"
-	UnHealthy  = "UnHealthy"
-	Error      = "Error"
-	Stopped    = "Stopped"
-	Installing = "Installing"
-	Syncing    = "Syncing"
+	Running     = "Running"
+	UnHealthy   = "UnHealthy"
+	Error       = "Error"
+	Stopped     = "Stopped"
+	Installing  = "Installing"
+	Syncing     = "Syncing"
+	DownloadErr = "DownloadErr"
+	DirNotFound = "DirNotFound"
+	Upgrading   = "Upgrading"
+	UpgradeErr  = "UpgradeErr"
+	PullErr     = "PullErr"
 
 	ContainerPrefix = "1Panel-"
 
@@ -16,6 +21,14 @@ const (
 	AppOpenresty = "openresty"
 	AppMysql     = "mysql"
 	AppRedis     = "redis"
+
+	AppResourceLocal  = "local"
+	AppResourceRemote = "remote"
+
+	CPUS          = "CPUS"
+	MemoryLimit   = "MEMORY_LIMIT"
+	HostIP        = "HOST_IP"
+	ContainerName = "CONTAINER_NAME"
 )
 
 type AppOperate string

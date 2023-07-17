@@ -1,7 +1,7 @@
 <template>
     <el-drawer v-model="open" size="40%">
         <template #header>
-            <DrawerHeader :header="$t('file.rename')" :back="handleClose" />
+            <DrawerHeader :header="$t('file.rename')" :resource="oldName" :back="handleClose" />
         </template>
         <el-row>
             <el-col :span="22" :offset="1">
@@ -16,7 +16,7 @@
                     <el-form-item :label="$t('file.path')" prop="path">
                         <el-input v-model="addForm.path" disabled />
                     </el-form-item>
-                    <el-form-item :label="$t('file.name')" prop="newName">
+                    <el-form-item :label="$t('commons.table.name')" prop="newName">
                         <el-input v-model.trim="addForm.newName" />
                     </el-form-item>
                 </el-form>
@@ -39,6 +39,7 @@ import { reactive, ref } from 'vue';
 import { File } from '@/api/interface/file';
 import i18n from '@/lang';
 import { MsgSuccess } from '@/utils/message';
+import DrawerHeader from '@/components/drawer-header/index.vue';
 
 interface RenameProps {
     path: string;
@@ -47,7 +48,7 @@ interface RenameProps {
 
 const fileForm = ref<FormInstance>();
 const loading = ref(false);
-let open = ref(false);
+const open = ref(false);
 const oldName = ref('');
 
 const addForm = reactive({

@@ -3,6 +3,7 @@
         <template #header>
             <DrawerHeader :header="$t('website.acmeAccountManage')" :back="handleClose" />
         </template>
+        <el-alert :title="$t('ssl.acmeHelper')" type="info" :closable="false" style="margin-bottom: 5px" />
         <ComplexTable :data="data" :pagination-config="paginationConfig" @search="search()" v-loading="loading">
             <template #toolbar>
                 <el-button type="primary" @click="openCreate">{{ $t('website.addAccount') }}</el-button>
@@ -24,7 +25,6 @@
 import DrawerHeader from '@/components/drawer-header/index.vue';
 import { Website } from '@/api/interface/website';
 import { DeleteAcmeAccount, SearchAcmeAccount } from '@/api/modules/website';
-import ComplexTable from '@/components/complex-table/index.vue';
 import { useDeleteData } from '@/hooks/use-delete-data';
 import i18n from '@/lang';
 import { reactive, ref } from 'vue';
@@ -42,7 +42,7 @@ const paginationConfig = reactive({
 
 const buttons = [
     {
-        label: i18n.global.t('app.delete'),
+        label: i18n.global.t('commons.button.delete'),
         click: function (row: Website.AcmeAccount) {
             deleteAccount(row.id);
         },

@@ -20,12 +20,15 @@ type ICronjobRepo interface {
 	Page(limit, offset int, opts ...DBOption) (int64, []model.Cronjob, error)
 	Create(cronjob *model.Cronjob) error
 	WithByJobID(id int) DBOption
+	WithByBackupID(id uint) DBOption
+	WithByRecordDropID(id int) DBOption
 	Save(id uint, cronjob model.Cronjob) error
 	Update(id uint, vars map[string]interface{}) error
 	Delete(opts ...DBOption) error
 	DeleteRecord(opts ...DBOption) error
 	StartRecords(cronjobID uint, fromLocal bool, targetPath string) model.JobRecords
 	EndRecords(record model.JobRecords, status, message, records string)
+	PageRecords(page, size int, opts ...DBOption) (int64, []model.JobRecords, error)
 }
 
 func NewICronjobRepo() ICronjobRepo {
@@ -80,7 +83,7 @@ func (u *CronjobRepo) Page(page, size int, opts ...DBOption) (int64, []model.Cro
 	}
 	count := int64(0)
 	db = db.Count(&count)
-	err := db.Order("created_at desc").Limit(size).Offset(size * (page - 1)).Find(&cronjobs).Error
+	err := db.Limit(size).Offset(size * (page - 1)).Find(&cronjobs).Error
 	return count, cronjobs, err
 }
 
@@ -109,6 +112,18 @@ func (u *CronjobRepo) Create(cronjob *model.Cronjob) error {
 func (c *CronjobRepo) WithByJobID(id int) DBOption {
 	return func(g *gorm.DB) *gorm.DB {
 		return g.Where("cronjob_id = ?", id)
+	}
+}
+
+func (c *CronjobRepo) WithByBackupID(id uint) DBOption {
+	return func(g *gorm.DB) *gorm.DB {
+		return g.Where("target_dir_id = ?", id)
+	}
+}
+
+func (c *CronjobRepo) WithByRecordDropID(id int) DBOption {
+	return func(g *gorm.DB) *gorm.DB {
+		return g.Where("id < ?", id)
 	}
 }
 

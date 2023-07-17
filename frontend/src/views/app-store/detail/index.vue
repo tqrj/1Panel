@@ -15,7 +15,7 @@
                             </div>
                             <div class="description">
                                 <span>
-                                    {{ language == 'zh' ? app.shortDescZh : app.shortDescEn }}
+                                    {{ language == 'zh' || language == 'tw' ? app.shortDescZh : app.shortDescEn }}
                                 </span>
                             </div>
                             <div class="version">
@@ -82,8 +82,12 @@
                     </el-row>
                 </div>
             </div>
-            <div v-loading="loadingDetail" style="margin-left: 10px">
-                <MdEditor v-model="appDetail.readme" previewOnly />
+            <div style="margin-left: 10px">
+                <MdEditor
+                    v-model="app.readMe"
+                    previewOnly
+                    :theme="globalStore.$state.themeConfig.theme === 'dark' ? 'dark' : 'light'"
+                />
             </div>
         </template>
     </LayoutContent>
@@ -92,11 +96,14 @@
 
 <script lang="ts" setup>
 import { GetApp, GetAppDetail } from '@/api/modules/app';
-import LayoutContent from '@/layout/layout-content.vue';
 import MdEditor from 'md-editor-v3';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Install from './install/index.vue';
+import router from '@/routers';
+import { GlobalStore } from '@/store';
+const globalStore = GlobalStore();
+
 const language = useI18n().locale.value;
 
 interface OperateProps {
@@ -107,12 +114,11 @@ const props = withDefaults(defineProps<OperateProps>(), {
     // id: 0,
     appKey: '',
 });
-let app = ref<any>({});
-let appDetail = ref<any>({});
-let version = ref('');
-let loadingDetail = ref(false);
-let loadingApp = ref(false);
-// let appKey = ref();
+const app = ref<any>({});
+const appDetail = ref<any>({});
+const version = ref('');
+const loadingDetail = ref(false);
+const loadingApp = ref(false);
 const installRef = ref();
 
 const getApp = async () => {
@@ -131,7 +137,7 @@ const getApp = async () => {
 const getDetail = async (id: number, version: string) => {
     loadingDetail.value = true;
     try {
-        const res = await GetAppDetail(id, version);
+        const res = await GetAppDetail(id, version, 'app');
         appDetail.value = res.data;
     } finally {
         loadingDetail.value = false;
@@ -146,8 +152,14 @@ const openInstall = () => {
     let params = {
         params: appDetail.value.params,
         appDetailId: appDetail.value.id,
+        app: app.value,
+        compose: appDetail.value.dockerCompose,
     };
-    installRef.value.acceptParams(params);
+    if (app.value.type === 'php') {
+        router.push({ path: '/websites/runtime/php' });
+    } else {
+        installRef.value.acceptParams(params);
+    }
 };
 
 onMounted(() => {

@@ -3,8 +3,9 @@ package v1
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -51,7 +52,7 @@ func (b *BaseApi) ListFiles(c *gin.Context) {
 // @Description 分页获取上传文件
 // @Accept json
 // @Param request body request.SearchUploadWithPage true "request"
-// @Success 200 {anrry} response.FileInfo
+// @Success 200 {array} response.FileInfo
 // @Security ApiKeyAuth
 // @Router /files/upload/search [post]
 func (b *BaseApi) SearchUploadWithPage(c *gin.Context) {
@@ -80,7 +81,7 @@ func (b *BaseApi) SearchUploadWithPage(c *gin.Context) {
 // @Description 加载文件树
 // @Accept json
 // @Param request body request.FileOption true "request"
-// @Success 200 {anrry} response.FileTree
+// @Success 200 {array} response.FileTree
 // @Security ApiKeyAuth
 // @Router /files/tree [post]
 func (b *BaseApi) GetFileTree(c *gin.Context) {
@@ -186,7 +187,29 @@ func (b *BaseApi) ChangeFileMode(c *gin.Context) {
 		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, err)
 		return
 	}
-	helper.SuccessWithData(c, nil)
+	helper.SuccessWithOutData(c)
+}
+
+// @Tags File
+// @Summary Change file owner
+// @Description 修改文件用户/组
+// @Accept json
+// @Param request body request.FileRoleUpdate true "request"
+// @Success 200
+// @Security ApiKeyAuth
+// @Router /files/owner [post]
+// @x-panel-log {"bodyKeys":["path","user","group"],"paramKeys":[],"BeforeFuntions":[],"formatZH":"修改用户/组 [paths] => [user]/[group]","formatEN":"Change owner [paths] => [user]/[group]"}
+func (b *BaseApi) ChangeFileOwner(c *gin.Context) {
+	var req request.FileRoleUpdate
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.ErrorWithDetail(c, constant.CodeErrBadRequest, constant.ErrTypeInvalidParams, err)
+		return
+	}
+	if err := fileService.ChangeOwner(req); err != nil {
+		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, err)
+		return
+	}
+	helper.SuccessWithOutData(c)
 }
 
 // @Tags File
@@ -432,17 +455,93 @@ func (b *BaseApi) MoveFile(c *gin.Context) {
 // @Router /files/download [post]
 // @x-panel-log {"bodyKeys":["name"],"paramKeys":[],"BeforeFuntions":[],"formatZH":"下载文件 [name]","formatEN":"Download file [name]"}
 func (b *BaseApi) Download(c *gin.Context) {
-	var req request.FileDownload
+	filePath := c.Query("path")
+	file, err := os.Open(filePath)
+	if err != nil {
+		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, err)
+	}
+	info, _ := file.Stat()
+	c.Header("Content-Length", strconv.FormatInt(info.Size(), 10))
+	c.Header("Content-Disposition", "attachment; filename*=utf-8''"+url.PathEscape(info.Name()))
+	http.ServeContent(c.Writer, c.Request, info.Name(), info.ModTime(), file)
+}
+
+// @Tags File
+// @Summary Chunk Download file
+// @Description 分片下载下载文件
+// @Accept json
+// @Param request body request.FileDownload true "request"
+// @Success 200
+// @Security ApiKeyAuth
+// @Router /files/chunkdownload [post]
+// @x-panel-log {"bodyKeys":["name"],"paramKeys":[],"BeforeFuntions":[],"formatZH":"下载文件 [name]","formatEN":"Download file [name]"}
+func (b *BaseApi) DownloadChunkFiles(c *gin.Context) {
+	var req request.FileChunkDownload
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.ErrorWithDetail(c, constant.CodeErrBadRequest, constant.ErrTypeInvalidParams, err)
 		return
 	}
-	filePath, err := fileService.FileDownload(req)
+	fileOp := files.NewFileOp()
+	if !fileOp.Stat(req.Path) {
+		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrPathNotFound, nil)
+		return
+	}
+	filePath := req.Path
+	fstFile, err := fileOp.OpenFile(filePath)
 	if err != nil {
 		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, err)
 		return
 	}
-	c.File(filePath)
+	info, err := fstFile.Stat()
+	if err != nil {
+		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, err)
+		return
+	}
+	if info.IsDir() {
+		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrFileDownloadDir, err)
+		return
+	}
+
+	c.Writer.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", req.Name))
+	c.Writer.Header().Set("Content-Type", "application/octet-stream")
+	c.Writer.Header().Set("Content-Length", strconv.FormatInt(info.Size(), 10))
+	c.Writer.Header().Set("Accept-Ranges", "bytes")
+
+	if c.Request.Header.Get("Range") != "" {
+		rangeHeader := c.Request.Header.Get("Range")
+		rangeArr := strings.Split(rangeHeader, "=")[1]
+		rangeParts := strings.Split(rangeArr, "-")
+
+		startPos, _ := strconv.ParseInt(rangeParts[0], 10, 64)
+
+		var endPos int64
+		if rangeParts[1] == "" {
+			endPos = info.Size() - 1
+		} else {
+			endPos, _ = strconv.ParseInt(rangeParts[1], 10, 64)
+		}
+
+		c.Writer.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", startPos, endPos, info.Size()))
+		c.Writer.WriteHeader(http.StatusPartialContent)
+
+		buffer := make([]byte, 1024*1024)
+		file, err := os.Open(filePath)
+		if err != nil {
+			helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, err)
+			return
+		}
+		defer file.Close()
+
+		_, _ = file.Seek(startPos, 0)
+		reader := io.LimitReader(file, endPos-startPos+1)
+		_, err = io.CopyBuffer(c.Writer, reader, buffer)
+		if err != nil {
+			helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, err)
+			return
+		}
+	} else {
+		c.File(filePath)
+	}
 }
 
 // @Tags File
@@ -498,7 +597,6 @@ func (b *BaseApi) Size(c *gin.Context) {
 // @Success 200 {string} content
 // @Security ApiKeyAuth
 // @Router /files/loadfile [post]
-// @x-panel-log {"bodyKeys":["path"],"paramKeys":[],"BeforeFuntions":[],"formatZH":"读取文件 [path]","formatEN":"Read file [path]"}
 func (b *BaseApi) LoadFromFile(c *gin.Context) {
 	var req dto.FilePath
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -510,7 +608,7 @@ func (b *BaseApi) LoadFromFile(c *gin.Context) {
 		return
 	}
 
-	content, err := ioutil.ReadFile(req.Path)
+	content, err := os.ReadFile(req.Path)
 	if err != nil {
 		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, err)
 		return
@@ -533,7 +631,7 @@ func mergeChunks(fileName string, fileDir string, dstDir string, chunkCount int)
 
 	for i := 0; i < chunkCount; i++ {
 		chunkPath := filepath.Join(fileDir, fmt.Sprintf("%s.%d", fileName, i))
-		chunkData, err := ioutil.ReadFile(chunkPath)
+		chunkData, err := os.ReadFile(chunkPath)
 		if err != nil {
 			return err
 		}
@@ -554,6 +652,7 @@ func mergeChunks(fileName string, fileDir string, dstDir string, chunkCount int)
 // @Security ApiKeyAuth
 // @Router /files/chunkupload [post]
 func (b *BaseApi) UploadChunkFiles(c *gin.Context) {
+	var err error
 	fileForm, err := c.FormFile("chunk")
 	if err != nil {
 		helper.ErrorWithDetail(c, constant.CodeErrBadRequest, constant.ErrTypeInvalidParams, err)
@@ -564,19 +663,16 @@ func (b *BaseApi) UploadChunkFiles(c *gin.Context) {
 		helper.ErrorWithDetail(c, constant.CodeErrBadRequest, constant.ErrTypeInvalidParams, err)
 		return
 	}
-
 	chunkIndex, err := strconv.Atoi(c.PostForm("chunkIndex"))
 	if err != nil {
 		helper.ErrorWithDetail(c, constant.CodeErrBadRequest, constant.ErrTypeInvalidParams, err)
 		return
 	}
-
 	chunkCount, err := strconv.Atoi(c.PostForm("chunkCount"))
 	if err != nil {
 		helper.ErrorWithDetail(c, constant.CodeErrBadRequest, constant.ErrTypeInvalidParams, err)
 		return
 	}
-
 	fileOp := files.NewFileOp()
 	tmpDir := path.Join(global.CONF.System.TmpDir, "upload")
 	if !fileOp.Stat(tmpDir) {
@@ -585,37 +681,50 @@ func (b *BaseApi) UploadChunkFiles(c *gin.Context) {
 			return
 		}
 	}
-
 	filename := c.PostForm("filename")
 	fileDir := filepath.Join(tmpDir, filename)
-
-	_ = os.MkdirAll(fileDir, 0755)
+	if chunkIndex == 0 {
+		if fileOp.Stat(fileDir) {
+			_ = fileOp.DeleteDir(fileDir)
+		}
+		_ = os.MkdirAll(fileDir, 0755)
+	}
 	filePath := filepath.Join(fileDir, filename)
 
-	emptyFile, err := os.Create(filePath)
+	defer func() {
+		if err != nil {
+			_ = os.Remove(fileDir)
+		}
+	}()
+	var (
+		emptyFile *os.File
+		chunkData []byte
+	)
+
+	emptyFile, err = os.Create(filePath)
 	if err != nil {
 		helper.ErrorWithDetail(c, constant.CodeErrBadRequest, constant.ErrTypeInvalidParams, err)
 		return
 	}
 	defer emptyFile.Close()
 
-	chunkData, err := ioutil.ReadAll(uploadFile)
+	chunkData, err = io.ReadAll(uploadFile)
 	if err != nil {
-		helper.ErrorWithDetail(c, constant.CodeErrBadRequest, constant.ErrFileUpload, err)
+		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, buserr.WithMap(constant.ErrFileUpload, map[string]interface{}{"name": filename, "detail": err.Error()}, err))
 		return
 	}
 
 	chunkPath := filepath.Join(fileDir, fmt.Sprintf("%s.%d", filename, chunkIndex))
-	err = ioutil.WriteFile(chunkPath, chunkData, 0644)
+	err = os.WriteFile(chunkPath, chunkData, 0644)
 	if err != nil {
-		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrFileUpload, err)
+		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, buserr.WithMap(constant.ErrFileUpload, map[string]interface{}{"name": filename, "detail": err.Error()}, err))
 		return
 	}
 
 	if chunkIndex+1 == chunkCount {
 		err = mergeChunks(filename, fileDir, c.PostForm("path"), chunkCount)
 		if err != nil {
-			helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrFileUpload, err)
+			helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, buserr.WithMap(constant.ErrFileUpload, map[string]interface{}{"name": filename, "detail": err.Error()}, err))
 			return
 		}
 		helper.SuccessWithData(c, true)
@@ -630,19 +739,12 @@ var wsUpgrade = websocket.Upgrader{
 	},
 }
 
-var WsManager = websocket2.Manager{
-	Group:       make(map[string]*websocket2.Client),
-	Register:    make(chan *websocket2.Client, 128),
-	UnRegister:  make(chan *websocket2.Client, 128),
-	ClientCount: 0,
-}
-
 func (b *BaseApi) Ws(c *gin.Context) {
 	ws, err := wsUpgrade.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
 	}
-	wsClient := websocket2.NewWsClient("wsClient", ws)
+	wsClient := websocket2.NewWsClient("fileClient", ws)
 	go wsClient.Read()
 	go wsClient.Write()
 }

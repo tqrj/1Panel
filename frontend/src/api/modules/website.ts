@@ -1,6 +1,6 @@
 import http from '@/api';
 import { ReqPage, ResPage } from '../interface';
-import { Website } from '../interface/Website';
+import { Website } from '../interface/website';
 import { File } from '../interface/file';
 
 export const SearchWebsites = (req: Website.WebSiteSearch) => {
@@ -35,8 +35,8 @@ export const GetWebsiteOptions = () => {
     return http.get<Array<string>>(`/websites/options`);
 };
 
-export const GetWebsiteNginx = (id: number) => {
-    return http.get<File.File>(`/websites/${id}/nginx`);
+export const GetWebsiteConfig = (id: number, type: string) => {
+    return http.get<File.File>(`/websites/${id}/config/${type}`);
 };
 
 export const DeleteWebsite = (req: Website.WebSiteDel) => {
@@ -100,7 +100,7 @@ export const ListSSL = (req: Website.SSLReq) => {
 };
 
 export const CreateSSL = (req: Website.SSLCreate) => {
-    return http.post<Website.SSLCreate>(`/websites/ssl`, req);
+    return http.post<Website.SSLCreate>(`/websites/ssl`, req, 100000);
 };
 
 export const DeleteSSL = (req: Website.DelReq) => {
@@ -128,7 +128,7 @@ export const UpdateSSL = (req: Website.SSLUpdate) => {
 };
 
 export const GetDnsResolve = (req: Website.DNSResolveReq) => {
-    return http.post<Website.DNSResolve[]>(`/websites/ssl/resolve`, req);
+    return http.post<Website.DNSResolve[]>(`/websites/ssl/resolve`, req, 60000);
 };
 
 export const GetHTTPSConfig = (id: number) => {
@@ -157,4 +157,60 @@ export const UpdateNginxFile = (req: Website.NginxUpdate) => {
 
 export const ChangeDefaultServer = (req: Website.DefaultServerUpdate) => {
     return http.post<any>(`/websites/default/server`, req);
+};
+
+export const GetPHPConfig = (id: number) => {
+    return http.get<Website.PHPConfig>(`/websites/php/config/${id}`);
+};
+
+export const UpdatePHPConfig = (req: Website.PHPConfigUpdate) => {
+    return http.post<any>(`/websites/php/config/`, req);
+};
+
+export const UpdatePHPFile = (req: Website.PHPUpdate) => {
+    return http.post<any>(`/websites/php/update`, req);
+};
+
+export const GetRewriteConfig = (req: Website.RewriteReq) => {
+    return http.post<Website.RewriteRes>(`/websites/rewrite`, req);
+};
+
+export const UpdateRewriteConfig = (req: Website.RewriteUpdate) => {
+    return http.post<any>(`/websites/rewrite/update`, req);
+};
+
+export const UpdateWebsiteDir = (req: Website.DirUpdate) => {
+    return http.post<any>(`/websites/dir/update`, req);
+};
+
+export const UpdateWebsiteDirPermission = (req: Website.DirPermissionUpdate) => {
+    return http.post<any>(`/websites/dir/permission`, req);
+};
+
+export const GetProxyConfig = (req: Website.ProxyReq) => {
+    return http.post<Website.ProxyConfig[]>(`/websites/proxies`, req);
+};
+
+export const OperateProxyConfig = (req: Website.ProxyReq) => {
+    return http.post<any>(`/websites/proxies/update`, req);
+};
+
+export const UpdateProxyConfigFile = (req: Website.ProxyFileUpdate) => {
+    return http.post<any>(`/websites/proxies/file`, req);
+};
+
+export const GetAuthConfig = (req: Website.AuthReq) => {
+    return http.post<Website.AuthConfig>(`/websites/auths`, req);
+};
+
+export const OperateAuthConfig = (req: Website.NginxAuthConfig) => {
+    return http.post<any>(`/websites/auths/update`, req);
+};
+
+export const GetAntiLeech = (req: Website.LeechReq) => {
+    return http.post<Website.LeechConfig>(`/websites/leech`, req);
+};
+
+export const UpdateAntiLeech = (req: Website.LeechConfig) => {
+    return http.post<any>(`/websites/leech/update`, req);
 };

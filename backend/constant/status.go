@@ -9,4 +9,8 @@ const (
 	StatusUploading = "Uploading"
 	StatusEnable    = "Enable"
 	StatusDisable   = "Disable"
+	StatusNone      = "None"
+
+	OrderDesc = "descending"
+	OrderAsc  = "ascending"
 )

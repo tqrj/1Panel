@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -57,6 +56,12 @@ func (u *SnapshotService) SnapshotImport(req dto.SnapshotImport) error {
 	if len(req.Names) == 0 {
 		return fmt.Errorf("incorrect snapshot request body: %v", req.Names)
 	}
+	for _, snapName := range req.Names {
+		snap, _ := snapshotRepo.Get(commonRepo.WithByName(strings.ReplaceAll(snapName, ".tar.gz", "")))
+		if snap.ID != 0 {
+			return constant.ErrRecordExist
+		}
+	}
 	for _, snap := range req.Names {
 		nameItems := strings.Split(snap, "_")
 		if !strings.HasPrefix(snap, "1panel_v") || !strings.HasSuffix(snap, ".tar.gz") || len(nameItems) != 3 {
@@ -94,7 +99,7 @@ func (u *SnapshotService) UpdateDescription(req dto.UpdateDescription) error {
 type SnapshotJson struct {
 	OldBaseDir       string `json:"oldBaseDir"`
 	OldDockerDataDir string `json:"oldDockerDataDir"`
-	OldBackupDataDir string `json:"oldDackupDataDir"`
+	OldBackupDataDir string `json:"oldBackupDataDir"`
 	OldPanelDataDir  string `json:"oldPanelDataDir"`
 
 	BaseDir            string `json:"baseDir"`
@@ -114,7 +119,7 @@ func (u *SnapshotService) SnapshotCreate(req dto.SnapshotCreate) error {
 	if err != nil {
 		return err
 	}
-	backupAccont, err := NewIBackupService().NewClient(&backup)
+	backupAccount, err := NewIBackupService().NewClient(&backup)
 	if err != nil {
 		return err
 	}
@@ -203,7 +208,9 @@ func (u *SnapshotService) SnapshotCreate(req dto.SnapshotCreate) error {
 		global.LOG.Infof("start to upload snapshot to %s, please wait", backup.Type)
 		_ = snapshotRepo.Update(snap.ID, map[string]interface{}{"status": constant.StatusUploading})
 		localPath := fmt.Sprintf("%s/system/1panel_%s_%s.tar.gz", localDir, versionItem.Value, timeNow)
-		if ok, err := backupAccont.Upload(localPath, fmt.Sprintf("system_snapshot/1panel_%s_%s.tar.gz", versionItem.Value, timeNow)); err != nil || !ok {
+		itemBackupPath := strings.TrimLeft(backup.BackupPath, "/")
+		itemBackupPath = strings.TrimRight(itemBackupPath, "/")
+		if ok, err := backupAccount.Upload(localPath, fmt.Sprintf("%s/system_snapshot/1panel_%s_%s.tar.gz", itemBackupPath, versionItem.Value, timeNow)); err != nil || !ok {
 			_ = snapshotRepo.Update(snap.ID, map[string]interface{}{"status": constant.StatusFailed, "message": err.Error()})
 			global.LOG.Errorf("upload snapshot to %s failed, err: %v", backup.Type, err)
 			return
@@ -254,7 +261,9 @@ func (u *SnapshotService) SnapshotRecover(req dto.SnapshotRecover) error {
 			operation = "re-recover"
 		}
 		if !isReTry || snap.InterruptStep == "Download" || (isReTry && req.ReDownload) {
-			ok, err := client.Download(fmt.Sprintf("system_snapshot/%s.tar.gz", snap.Name), fmt.Sprintf("%s/%s.tar.gz", baseDir, snap.Name))
+			itemBackupPath := strings.TrimLeft(backup.BackupPath, "/")
+			itemBackupPath = strings.TrimRight(itemBackupPath, "/")
+			ok, err := client.Download(fmt.Sprintf("%s/system_snapshot/%s.tar.gz", itemBackupPath, snap.Name), fmt.Sprintf("%s/%s.tar.gz", baseDir, snap.Name))
 			if err != nil || !ok {
 				if req.ReDownload {
 					updateRecoverStatus(snap.ID, snap.InterruptStep, constant.StatusFailed, fmt.Sprintf("download file %s from %s failed, err: %v", snap.Name, backup.Type, err))
@@ -484,7 +493,7 @@ func (u *SnapshotService) SnapshotRollback(req dto.SnapshotRecover) error {
 
 func (u *SnapshotService) saveJson(snapJson SnapshotJson, path string) error {
 	remarkInfo, _ := json.MarshalIndent(snapJson, "", "\t")
-	if err := ioutil.WriteFile(fmt.Sprintf("%s/snapshot.json", path), remarkInfo, 0640); err != nil {
+	if err := os.WriteFile(fmt.Sprintf("%s/snapshot.json", path), remarkInfo, 0640); err != nil {
 		return err
 	}
 	return nil
@@ -536,7 +545,7 @@ func (u *SnapshotService) handleDaemonJson(fileOp files.FileOp, operation string
 	if operation == "snapshot" || operation == "recover" {
 		_, err := os.Stat(daemonJsonPath)
 		if os.IsNotExist(err) {
-			global.LOG.Info("no daemon.josn in snapshot and system now, nothing happened")
+			global.LOG.Info("no daemon.json in snapshot and system now, nothing happened")
 		}
 		if err == nil {
 			if err := fileOp.CopyFile(daemonJsonPath, target); err != nil {
@@ -659,7 +668,7 @@ func (u *SnapshotService) handleBackupDatas(fileOp files.FileOp, operation strin
 func (u *SnapshotService) handlePanelDatas(snapID uint, fileOp files.FileOp, operation string, source, target, backupDir, dockerDir string) error {
 	switch operation {
 	case "snapshot":
-		exclusionRules := "./tmp;./cache;"
+		exclusionRules := "./tmp;./cache;./db/1Panel.db-*;"
 		if strings.Contains(backupDir, source) {
 			exclusionRules += ("." + strings.ReplaceAll(backupDir, source, "") + ";")
 		}
@@ -793,23 +802,23 @@ func (u *SnapshotService) updateLiveRestore(enabled bool) error {
 	if _, err := os.Stat(constant.DaemonJsonPath); err != nil {
 		return fmt.Errorf("load docker daemon.json conf failed, err: %v", err)
 	}
-	file, err := ioutil.ReadFile(constant.DaemonJsonPath)
+	file, err := os.ReadFile(constant.DaemonJsonPath)
 	if err != nil {
 		return err
 	}
-	deamonMap := make(map[string]interface{})
-	_ = json.Unmarshal(file, &deamonMap)
+	daemonMap := make(map[string]interface{})
+	_ = json.Unmarshal(file, &daemonMap)
 
 	if !enabled {
-		delete(deamonMap, "live-restore")
+		delete(daemonMap, "live-restore")
 	} else {
-		deamonMap["live-restore"] = enabled
+		daemonMap["live-restore"] = enabled
 	}
-	newJson, err := json.MarshalIndent(deamonMap, "", "\t")
+	newJson, err := json.MarshalIndent(daemonMap, "", "\t")
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(constant.DaemonJsonPath, newJson, 0640); err != nil {
+	if err := os.WriteFile(constant.DaemonJsonPath, newJson, 0640); err != nil {
 		return err
 	}
 
@@ -819,8 +828,8 @@ func (u *SnapshotService) updateLiveRestore(enabled bool) error {
 	}
 
 	ticker := time.NewTicker(3 * time.Second)
-	ctx, cancle := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancle()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
 	for range ticker.C {
 		select {
 		case <-ctx.Done():
@@ -855,7 +864,7 @@ func (u *SnapshotService) handleTar(sourceDir, targetDir, name, exclusionRules s
 
 	commands := fmt.Sprintf("tar --warning=no-file-changed -zcf %s %s -C %s .", targetDir+"/"+name, exStr, sourceDir)
 	global.LOG.Debug(commands)
-	stdout, err := cmd.Exec(commands)
+	stdout, err := cmd.ExecWithTimeOut(commands, 30*time.Minute)
 	if err != nil {
 		global.LOG.Errorf("do handle tar failed, stdout: %s, err: %v", stdout, err)
 		return errors.New(stdout)
@@ -872,7 +881,7 @@ func (u *SnapshotService) handleUnTar(sourceDir, targetDir string) error {
 
 	commands := fmt.Sprintf("tar -zxf %s -C %s .", sourceDir, targetDir)
 	global.LOG.Debug(commands)
-	stdout, err := cmd.Exec(commands)
+	stdout, err := cmd.ExecWithTimeOut(commands, 30*time.Minute)
 	if err != nil {
 		global.LOG.Errorf("do handle untar failed, stdout: %s, err: %v", stdout, err)
 		return errors.New(stdout)

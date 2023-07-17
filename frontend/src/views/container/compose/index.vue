@@ -10,6 +10,20 @@
         </el-card>
 
         <LayoutContent v-if="!isOnDetail" :title="$t('container.compose')" :class="{ mask: dockerStatus != 'Running' }">
+            <template #prompt>
+                <el-alert type="info" :closable="false">
+                    <template #default>
+                        <span>
+                            <span>{{ $t('container.composeHelper', [baseDir]) }}</span>
+                            <el-button type="primary" link @click="toFolder">
+                                <el-icon>
+                                    <FolderOpened />
+                                </el-icon>
+                            </el-button>
+                        </span>
+                    </template>
+                </el-alert>
+            </template>
             <template #toolbar>
                 <el-row>
                     <el-col :span="16">
@@ -26,7 +40,7 @@
                                 @clear="search()"
                                 suffix-icon="Search"
                                 @keyup.enter="search()"
-                                @blur="search()"
+                                @change="search()"
                                 :placeholder="$t('commons.button.search')"
                             ></el-input>
                         </div>
@@ -72,23 +86,23 @@
 
         <EditDialog ref="dialogEditRef" />
         <CreateDialog @search="search" ref="dialogRef" />
+        <DeleteDialog @search="search" ref="dialogDelRef" />
     </div>
 </template>
 
 <script lang="ts" setup>
 import Tooltip from '@/components/tooltip/index.vue';
-import ComplexTable from '@/components/complex-table/index.vue';
 import TableSetting from '@/components/table-setting/index.vue';
 import { reactive, onMounted, ref } from 'vue';
-import LayoutContent from '@/layout/layout-content.vue';
 import EditDialog from '@/views/container/compose/edit/index.vue';
 import CreateDialog from '@/views/container/compose/create/index.vue';
+import DeleteDialog from '@/views/container/compose/delete/index.vue';
 import ComposeDetial from '@/views/container/compose/detail/index.vue';
-import { composeOperator, loadDockerStatus, searchCompose } from '@/api/modules/container';
+import { loadDockerStatus, searchCompose } from '@/api/modules/container';
 import i18n from '@/lang';
 import { Container } from '@/api/interface/container';
-import { useDeleteData } from '@/hooks/use-delete-data';
 import { LoadFile } from '@/api/modules/files';
+import { loadBaseDir } from '@/api/modules/setting';
 import router from '@/routers';
 
 const data = ref();
@@ -96,6 +110,7 @@ const selects = ref<any>([]);
 const loading = ref(false);
 
 const isOnDetail = ref(false);
+const baseDir = ref();
 
 const paginationConfig = reactive({
     currentPage: 1,
@@ -122,6 +137,15 @@ const loadStatus = async () => {
 };
 const goSetting = async () => {
     router.push({ name: 'ContainerSetting' });
+};
+
+const toFolder = async () => {
+    router.push({ path: '/hosts/files', query: { path: baseDir.value + '/docker/compose' } });
+};
+
+const loadPath = async () => {
+    const pathRes = await loadBaseDir();
+    baseDir.value = pathRes.data;
 };
 
 const search = async () => {
@@ -163,14 +187,13 @@ const onOpenDialog = async () => {
     dialogRef.value!.acceptParams();
 };
 
+const dialogDelRef = ref();
 const onDelete = async (row: Container.ComposeInfo) => {
     const param = {
         name: row.name,
         path: row.path,
-        operation: 'down',
     };
-    await useDeleteData(composeOperator, param, 'commons.msg.delete');
-    search();
+    dialogDelRef.value.acceptParams(param);
 };
 
 const dialogEditRef = ref();
@@ -205,6 +228,7 @@ const buttons = [
     },
 ];
 onMounted(() => {
+    loadPath();
     loadStatus();
 });
 </script>

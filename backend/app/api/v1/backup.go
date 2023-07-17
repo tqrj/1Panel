@@ -2,6 +2,8 @@ package v1
 
 import (
 	"encoding/base64"
+	"fmt"
+	"path"
 
 	"github.com/1Panel-dev/1Panel/backend/app/api/v1/helper"
 	"github.com/1Panel-dev/1Panel/backend/app/dto"
@@ -58,7 +60,7 @@ func (b *BaseApi) CreateBackup(c *gin.Context) {
 // @Description 获取 bucket 列表
 // @Accept json
 // @Param request body dto.ForBuckets true "request"
-// @Success 200 {anrry} string
+// @Success 200 {array} string
 // @Security ApiKeyAuth
 // @Router /settings/backup/search [post]
 func (b *BaseApi) ListBuckets(c *gin.Context) {
@@ -97,6 +99,22 @@ func (b *BaseApi) ListBuckets(c *gin.Context) {
 }
 
 // @Tags Backup Account
+// @Summary Load OneDrive info
+// @Description 获取 OneDrive 信息
+// @Accept json
+// @Success 200 string clientID
+// @Security ApiKeyAuth
+// @Router /settings/backup/onedrive [get]
+func (b *BaseApi) LoadOneDriveInfo(c *gin.Context) {
+	clientID, err := backupService.LoadOneDriveInfo()
+	if err != nil {
+		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, err)
+		return
+	}
+	helper.SuccessWithData(c, clientID)
+}
+
+// @Tags Backup Account
 // @Summary Delete backup account
 // @Description 删除备份账号
 // @Accept json
@@ -104,9 +122,9 @@ func (b *BaseApi) ListBuckets(c *gin.Context) {
 // @Success 200
 // @Security ApiKeyAuth
 // @Router /settings/backup/del [post]
-// @x-panel-log {"bodyKeys":["ids"],"paramKeys":[],"BeforeFuntions":[{"input_colume":"id","input_value":"ids","isList":true,"db":"backup_accounts","output_colume":"type","output_value":"types"}],"formatZH":"删除备份账号 [types]","formatEN":"delete backup account [types]"}
+// @x-panel-log {"bodyKeys":["id"],"paramKeys":[],"BeforeFuntions":[{"input_column":"id","input_value":"id","isList":true,"db":"backup_accounts","output_column":"type","output_value":"types"}],"formatZH":"删除备份账号 [types]","formatEN":"delete backup account [types]"}
 func (b *BaseApi) DeleteBackup(c *gin.Context) {
-	var req dto.BatchDeleteReq
+	var req dto.OperateByID
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.ErrorWithDetail(c, constant.CodeErrBadRequest, constant.ErrTypeInvalidParams, err)
 		return
@@ -116,7 +134,7 @@ func (b *BaseApi) DeleteBackup(c *gin.Context) {
 		return
 	}
 
-	if err := backupService.BatchDelete(req.Ids); err != nil {
+	if err := backupService.Delete(req.ID); err != nil {
 		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, err)
 		return
 	}
@@ -186,7 +204,7 @@ func (b *BaseApi) DownloadRecord(c *gin.Context) {
 // @Success 200
 // @Security ApiKeyAuth
 // @Router /settings/backup/record/del [post]
-// @x-panel-log {"bodyKeys":["ids"],"paramKeys":[],"BeforeFuntions":[{"input_colume":"id","input_value":"ids","isList":true,"db":"backup_records","output_colume":"file_name","output_value":"files"}],"formatZH":"删除备份记录 [files]","formatEN":"delete backup records [files]"}
+// @x-panel-log {"bodyKeys":["ids"],"paramKeys":[],"BeforeFuntions":[{"input_column":"id","input_value":"ids","isList":true,"db":"backup_records","output_column":"file_name","output_value":"files"}],"formatZH":"删除备份记录 [files]","formatEN":"delete backup records [files]"}
 func (b *BaseApi) DeleteBackupRecord(c *gin.Context) {
 	var req dto.BatchDeleteReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -251,7 +269,7 @@ func (b *BaseApi) UpdateBackup(c *gin.Context) {
 // @Tags Backup Account
 // @Summary List backup accounts
 // @Description 获取备份账号列表
-// @Success 200 {anrry} dto.BackupInfo
+// @Success 200 {array} dto.BackupInfo
 // @Security ApiKeyAuth
 // @Router /settings/backup/search [get]
 func (b *BaseApi) ListBackup(c *gin.Context) {
@@ -269,7 +287,7 @@ func (b *BaseApi) ListBackup(c *gin.Context) {
 // @Description 获取备份账号内文件列表
 // @Accept json
 // @Param request body dto.BackupSearchFile true "request"
-// @Success 200 {anrry} string
+// @Success 200 {array} string
 // @Security ApiKeyAuth
 // @Router /settings/backup/search/files [post]
 func (b *BaseApi) LoadFilesFromBackup(c *gin.Context) {
@@ -356,6 +374,14 @@ func (b *BaseApi) Recover(c *gin.Context) {
 		return
 	}
 
+	if req.Source != "LOCAL" {
+		downloadPath, err := backupService.DownloadRecord(dto.DownloadRecord{Source: req.Source, FileDir: path.Dir(req.File), FileName: path.Base(req.File)})
+		if err != nil {
+			helper.ErrorWithDetail(c, constant.CodeErrBadRequest, constant.ErrTypeInvalidParams, fmt.Errorf("download file failed, err: %v", err))
+			return
+		}
+		req.File = downloadPath
+	}
 	switch req.Type {
 	case "mysql":
 		if err := backupService.MysqlRecover(req); err != nil {

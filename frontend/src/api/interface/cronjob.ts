@@ -10,8 +10,11 @@ export namespace Cronjob {
         day: number;
         hour: number;
         minute: number;
+        second: number;
 
         script: string;
+        inContainer: boolean;
+        containerName: string;
         website: string;
         exclusionRules: string;
         dbName: string;
@@ -31,6 +34,7 @@ export namespace Cronjob {
         day: number;
         hour: number;
         minute: number;
+        second: number;
 
         script: string;
         website: string;
@@ -49,6 +53,7 @@ export namespace Cronjob {
         day: number;
         hour: number;
         minute: number;
+        second: number;
 
         script: string;
         website: string;

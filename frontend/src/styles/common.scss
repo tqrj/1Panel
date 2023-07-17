@@ -1,3 +1,6 @@
+html {
+    font-family: Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, 微软雅黑, Arial, sans-serif;
+}
 .flx-center {
     display: flex;
     align-items: center;
@@ -11,6 +14,11 @@
 .flx-align-center {
     display: flex;
     align-items: center;
+}
+
+.flx-wrap {
+    display: flex;
+    flex-wrap: wrap;
 }
 
 .clearfix::after {
@@ -117,8 +125,6 @@
     font-size: 12px;
     word-break: break-all;
     color: #8f959e;
-    transform: scale(0.9);
-    transform-origin: left;
     width: 110%;
     display: inline-block;
 }
@@ -230,7 +236,7 @@
     }
 }
 
-.menu-popper {
+.sidebar-container-popper {
     .el-menu--popup-right-start {
         background-color: rgba(0, 94, 235, 0.1);
     }
@@ -301,4 +307,43 @@
 
 .table-link:hover {
     opacity: 0.6;
+}
+
+.app-warn {
+    text-align: center;
+    margin-top: 100px;
+    span:first-child {
+        color: #bbbfc4;
+    }
+
+    span:nth-child(2) {
+        color: $primary-color;
+        cursor: pointer;
+    }
+
+    span:nth-child(2):hover {
+        color: #74a4f3;
+    }
+
+    img {
+        width: 300px;
+        height: 300px;
+    }
+}
+
+.no-active-button {
+    background: none;
+    border: none;
+}
+
+.common-prompt {
+    margin-bottom: 20px !important;
+}
+
+.mini-form-item {
+    width: 40% !important;
+}
+
+.left-button {
+    margin-left: 10px;
 }

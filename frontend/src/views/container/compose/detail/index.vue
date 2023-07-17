@@ -104,7 +104,6 @@
                 <CodemirrorDialog ref="mydetail" />
 
                 <ContainerLogDialog ref="dialogContainerLogRef" />
-                <CreateDialog @search="search" ref="dialogCreateRef" />
                 <MonitorDialog ref="dialogMonitorRef" />
                 <TerminalDialog ref="dialogTerminalRef" />
             </template>
@@ -115,16 +114,13 @@
 <script lang="ts" setup>
 import { reactive, ref } from 'vue';
 import Tooltip from '@/components/tooltip/index.vue';
-import LayoutContent from '@/layout/layout-content.vue';
-import CreateDialog from '@/views/container/container/create/index.vue';
 import MonitorDialog from '@/views/container/container/monitor/index.vue';
 import ContainerLogDialog from '@/views/container/container/log/index.vue';
 import TerminalDialog from '@/views/container/container/terminal/index.vue';
-import CodemirrorDialog from '@/components/codemirror-dialog/codemirror.vue';
-import ComplexTable from '@/components/complex-table/index.vue';
+import CodemirrorDialog from '@/components/codemirror-dialog/index.vue';
 import Status from '@/components/status/index.vue';
 import { dateFormat } from '@/utils/util';
-import { composeOperator, ContainerOperator, inspect, searchContainer } from '@/api/modules/container';
+import { composeOperator, containerOperator, inspect, searchContainer } from '@/api/modules/container';
 import { ElMessageBox } from 'element-plus';
 import i18n from '@/lang';
 import { Container } from '@/api/interface/container';
@@ -167,11 +163,19 @@ const search = async () => {
         page: paginationConfig.currentPage,
         pageSize: paginationConfig.pageSize,
         filters: filterItem,
+        orderBy: 'created_at',
+        order: 'null',
     };
-    await searchContainer(params).then((res) => {
-        data.value = res.data.items || [];
-        paginationConfig.total = res.data.total;
-    });
+    loading.value = true;
+    await searchContainer(params)
+        .then((res) => {
+            loading.value = false;
+            data.value = res.data.items || [];
+            paginationConfig.total = res.data.total;
+        })
+        .catch(() => {
+            loading.value = false;
+        });
 };
 
 const detailInfo = ref();
@@ -242,7 +246,7 @@ const onOperate = async (operation: string) => {
                 operation: operation,
                 newName: '',
             };
-            ps.push(ContainerOperator(param));
+            ps.push(containerOperator(param));
         }
         Promise.all(ps)
             .then(() => {
@@ -269,6 +273,7 @@ const onComposeOperate = async (operation: string) => {
             name: composeName.value,
             path: composePath.value,
             operation: operation,
+            withFile: false,
         };
         loading.value = true;
         await composeOperator(params)
@@ -288,13 +293,13 @@ const onComposeOperate = async (operation: string) => {
 };
 
 const dialogMonitorRef = ref();
-const onMonitor = (containerID: string) => {
-    dialogMonitorRef.value!.acceptParams({ containerID: containerID });
+const onMonitor = (row: any) => {
+    dialogMonitorRef.value!.acceptParams({ containerID: row.containerID, container: row.name });
 };
 
 const dialogTerminalRef = ref();
-const onTerminal = (containerID: string) => {
-    dialogTerminalRef.value!.acceptParams({ containerID: containerID });
+const onTerminal = (row: any) => {
+    dialogTerminalRef.value!.acceptParams({ containerID: row.containerID, container: row.name });
 };
 
 const dialogContainerLogRef = ref();
@@ -306,7 +311,7 @@ const buttons = [
             return row.state !== 'running';
         },
         click: (row: Container.ContainerInfo) => {
-            onTerminal(row.containerID);
+            onTerminal(row);
         },
     },
     {
@@ -315,13 +320,13 @@ const buttons = [
             return row.state !== 'running';
         },
         click: (row: Container.ContainerInfo) => {
-            onMonitor(row.containerID);
+            onMonitor(row);
         },
     },
     {
         label: i18n.global.t('commons.button.log'),
         click: (row: Container.ContainerInfo) => {
-            dialogContainerLogRef.value!.acceptParams({ containerID: row.containerID });
+            dialogContainerLogRef.value!.acceptParams({ containerID: row.containerID, container: row.name });
         },
     },
 ];

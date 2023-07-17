@@ -4,11 +4,11 @@
             <template #header>
                 <DrawerHeader
                     v-if="detailName"
-                    :header="$t('database.backup')"
+                    :header="$t('commons.button.backup')"
                     :resource="name + '(' + detailName + ')'"
                     :back="handleClose"
                 />
-                <DrawerHeader v-else :header="$t('database.backup')" :resource="name" :back="handleClose" />
+                <DrawerHeader v-else :header="$t('commons.button.backup')" :resource="name" :back="handleClose" />
             </template>
             <ComplexTable
                 v-loading="loading"
@@ -19,7 +19,7 @@
             >
                 <template #toolbar>
                     <el-button type="primary" @click="onBackup()">
-                        {{ $t('database.backup') }}
+                        {{ $t('commons.button.backup') }}
                     </el-button>
                     <el-button type="primary" plain :disabled="selects.length === 0" @click="onBatchDelete(null)">
                         {{ $t('commons.button.delete') }}
@@ -48,9 +48,8 @@
 </template>
 
 <script lang="ts" setup>
-import ComplexTable from '@/components/complex-table/index.vue';
 import { reactive, ref } from 'vue';
-import { dateFormat } from '@/utils/util';
+import { dateFormat, downloadFile } from '@/utils/util';
 import { useDeleteData } from '@/hooks/use-delete-data';
 import { handleBackup, handleRecover } from '@/api/modules/setting';
 import i18n from '@/lang';
@@ -58,7 +57,7 @@ import DrawerHeader from '@/components/drawer-header/index.vue';
 import { deleteBackupRecord, downloadBackupRecord, searchBackupRecords } from '@/api/modules/setting';
 import { Backup } from '@/api/interface/backup';
 import { MsgSuccess } from '@/utils/message';
-import { DownloadByPath } from '@/api/modules/files';
+// import { DownloadByPath } from '@/api/modules/files';
 
 const selects = ref<any>([]);
 const loading = ref();
@@ -124,6 +123,7 @@ const onBackup = async () => {
 
 const onRecover = async (row: Backup.RecordInfo) => {
     let params = {
+        source: row.source,
         type: type.value,
         name: name.value,
         detailName: detailName.value,
@@ -147,14 +147,7 @@ const onDownload = async (row: Backup.RecordInfo) => {
         fileName: row.fileName,
     };
     await downloadBackupRecord(params).then(async (res) => {
-        const file = await DownloadByPath(res.data);
-        const downloadUrl = window.URL.createObjectURL(new Blob([file]));
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = downloadUrl;
-        a.download = row.fileName;
-        const event = new MouseEvent('click');
-        a.dispatchEvent(event);
+        downloadFile(res.data);
     });
 };
 

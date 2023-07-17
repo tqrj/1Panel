@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"encoding/json"
+	"gorm.io/gorm/clause"
 
 	"github.com/1Panel-dev/1Panel/backend/app/model"
 	"github.com/1Panel-dev/1Panel/backend/global"
@@ -10,6 +11,33 @@ import (
 )
 
 type AppInstallRepo struct{}
+
+type IAppInstallRepo interface {
+	WithDetailIdsIn(detailIds []uint) DBOption
+	WithDetailIdNotIn(detailIds []uint) DBOption
+	WithAppId(appId uint) DBOption
+	WithAppIdsIn(appIds []uint) DBOption
+	WithStatus(status string) DBOption
+	WithServiceName(serviceName string) DBOption
+	WithContainerName(containerName string) DBOption
+	WithPort(port int) DBOption
+	WithIdNotInWebsite() DBOption
+	WithIDNotIs(id uint) DBOption
+	ListBy(opts ...DBOption) ([]model.AppInstall, error)
+	GetFirst(opts ...DBOption) (model.AppInstall, error)
+	Create(ctx context.Context, install *model.AppInstall) error
+	Save(ctx context.Context, install *model.AppInstall) error
+	DeleteBy(opts ...DBOption) error
+	Delete(ctx context.Context, install model.AppInstall) error
+	Page(page, size int, opts ...DBOption) (int64, []model.AppInstall, error)
+	BatchUpdateBy(maps map[string]interface{}, opts ...DBOption) error
+	LoadBaseInfo(key string, name string) (*RootInfo, error)
+	GetFirstByCtx(ctx context.Context, opts ...DBOption) (model.AppInstall, error)
+}
+
+func NewIAppInstallRepo() IAppInstallRepo {
+	return &AppInstallRepo{}
+}
 
 func (a *AppInstallRepo) WithDetailIdsIn(detailIds []uint) DBOption {
 	return func(g *gorm.DB) *gorm.DB {
@@ -29,6 +57,12 @@ func (a *AppInstallRepo) WithAppId(appId uint) DBOption {
 	}
 }
 
+func (a *AppInstallRepo) WithIDNotIs(id uint) DBOption {
+	return func(g *gorm.DB) *gorm.DB {
+		return g.Where("id != ?", id)
+	}
+}
+
 func (a *AppInstallRepo) WithAppIdsIn(appIds []uint) DBOption {
 	return func(g *gorm.DB) *gorm.DB {
 		return g.Where("app_id in (?)", appIds)
@@ -44,6 +78,12 @@ func (a *AppInstallRepo) WithStatus(status string) DBOption {
 func (a *AppInstallRepo) WithServiceName(serviceName string) DBOption {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where("service_name = ?", serviceName)
+	}
+}
+
+func (a *AppInstallRepo) WithContainerName(containerName string) DBOption {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where("container_name = ?", containerName)
 	}
 }
 
@@ -73,13 +113,20 @@ func (a *AppInstallRepo) GetFirst(opts ...DBOption) (model.AppInstall, error) {
 	return install, err
 }
 
-func (a *AppInstallRepo) Create(ctx context.Context, install *model.AppInstall) error {
-	db := getTx(ctx).Model(&model.AppInstall{})
-	return db.Create(&install).Error
+func (a *AppInstallRepo) GetFirstByCtx(ctx context.Context, opts ...DBOption) (model.AppInstall, error) {
+	var install model.AppInstall
+	db := getTx(ctx, opts...).Model(&model.AppInstall{})
+	err := db.Preload("App").First(&install).Error
+	return install, err
 }
 
-func (a *AppInstallRepo) Save(install *model.AppInstall) error {
-	return getDb().Save(&install).Error
+func (a *AppInstallRepo) Create(ctx context.Context, install *model.AppInstall) error {
+	db := getTx(ctx).Model(&model.AppInstall{})
+	return db.Omit(clause.Associations).Create(&install).Error
+}
+
+func (a *AppInstallRepo) Save(ctx context.Context, install *model.AppInstall) error {
+	return getTx(ctx).Omit(clause.Associations).Save(&install).Error
 }
 
 func (a *AppInstallRepo) DeleteBy(opts ...DBOption) error {
@@ -112,9 +159,11 @@ type RootInfo struct {
 	ID            uint   `json:"id"`
 	Name          string `json:"name"`
 	Port          int64  `json:"port"`
+	HttpsPort     int64  `json:"httpsPort"`
 	Password      string `json:"password"`
 	UserPassword  string `json:"userPassword"`
 	ContainerName string `json:"containerName"`
+	ServiceName   string `json:"serviceName"`
 	Param         string `json:"param"`
 	Env           string `json:"env"`
 	Key           string `json:"key"`
@@ -152,7 +201,9 @@ func (a *AppInstallRepo) LoadBaseInfo(key string, name string) (*RootInfo, error
 		info.UserPassword = userPassword
 	}
 	info.Port = int64(appInstall.HttpPort)
+	info.HttpsPort = int64(appInstall.HttpsPort)
 	info.ID = appInstall.ID
+	info.ServiceName = appInstall.ServiceName
 	info.ContainerName = appInstall.ContainerName
 	info.Name = appInstall.Name
 	info.Env = appInstall.Env

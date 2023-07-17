@@ -93,24 +93,24 @@ func (b *BaseApi) LoadPort(c *gin.Context) {
 
 // @Tags App
 // @Summary Search app password by key
-// @Description 获取应用密码
+// @Description 获取应用连接信息
 // @Accept json
 // @Param key path string true "request"
-// @Success 200 {string} password
+// @Success 200 {string} response.DatabaseConn
 // @Security ApiKeyAuth
-// @Router /apps/installed/loadpassword/:key [get]
-func (b *BaseApi) LoadPassword(c *gin.Context) {
+// @Router /apps/installed/conninfo/:key [get]
+func (b *BaseApi) LoadConnInfo(c *gin.Context) {
 	key, ok := c.Params.Get("key")
 	if !ok {
 		helper.ErrorWithDetail(c, constant.CodeErrBadRequest, constant.ErrTypeInvalidParams, errors.New("error key in path"))
 		return
 	}
-	password, err := appInstallService.LoadPassword(key)
+	conn, err := appInstallService.LoadConnInfo(key)
 	if err != nil {
 		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, err)
 		return
 	}
-	helper.SuccessWithData(c, password)
+	helper.SuccessWithData(c, conn)
 }
 
 // @Tags App
@@ -118,7 +118,7 @@ func (b *BaseApi) LoadPassword(c *gin.Context) {
 // @Description 删除前检查
 // @Accept json
 // @Param appInstallId path integer true "App install id"
-// @Success 200 {anrry} dto.AppResource
+// @Success 200 {array} dto.AppResource
 // @Security ApiKeyAuth
 // @Router /apps/installed/delete/check/:appInstallId [get]
 func (b *BaseApi) DeleteCheck(c *gin.Context) {
@@ -159,7 +159,7 @@ func (b *BaseApi) SyncInstalled(c *gin.Context) {
 // @Success 200
 // @Security ApiKeyAuth
 // @Router /apps/installed/op [post]
-// @x-panel-log {"bodyKeys":["installId","operate"],"paramKeys":[],"BeforeFuntions":[{"input_colume":"id","input_value":"installId","isList":false,"db":"app_installs","output_colume":"app_id","output_value":"appId"},{"input_colume":"id","input_value":"installId","isList":false,"db":"app_installs","output_colume":"name","output_value":"appName"},{"input_colume":"id","input_value":"appId","isList":false,"db":"apps","output_colume":"key","output_value":"appKey"}],"formatZH":"[appKey] 应用 [appName] [operate]","formatEN":"[appKey] App [appName] [operate]"}
+// @x-panel-log {"bodyKeys":["installId","operate"],"paramKeys":[],"BeforeFuntions":[{"input_column":"id","input_value":"installId","isList":false,"db":"app_installs","output_column":"app_id","output_value":"appId"},{"input_column":"id","input_value":"installId","isList":false,"db":"app_installs","output_column":"name","output_value":"appName"},{"input_column":"id","input_value":"appId","isList":false,"db":"apps","output_column":"key","output_value":"appKey"}],"formatZH":"[operate] 应用 [appKey][appName]","formatEN":"[operate] App [appKey][appName]"}
 func (b *BaseApi) OperateInstalled(c *gin.Context) {
 	var req request.AppInstalledOperate
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -178,7 +178,7 @@ func (b *BaseApi) OperateInstalled(c *gin.Context) {
 // @Description 通过 key 获取应用 service
 // @Accept json
 // @Param key path string true "request"
-// @Success 200 {anrry} response.AppService
+// @Success 200 {array} response.AppService
 // @Security ApiKeyAuth
 // @Router /apps/services/:key [get]
 func (b *BaseApi) GetServices(c *gin.Context) {
@@ -196,7 +196,7 @@ func (b *BaseApi) GetServices(c *gin.Context) {
 // @Description 通过 install id 获取应用更新版本
 // @Accept json
 // @Param appInstallId path integer true "request"
-// @Success 200 {anrry} dto.AppVersion
+// @Success 200 {array} dto.AppVersion
 // @Security ApiKeyAuth
 // @Router /apps/installed/:appInstallId/versions [get]
 func (b *BaseApi) GetUpdateVersions(c *gin.Context) {
@@ -304,4 +304,26 @@ func (b *BaseApi) UpdateInstalled(c *gin.Context) {
 		return
 	}
 	helper.SuccessWithData(c, nil)
+}
+
+// @Tags App
+// @Summary ignore App Update
+// @Description 忽略应用升级版本
+// @Accept json
+// @Param request body request.AppInstalledIgnoreUpgrade true "request"
+// @Success 200
+// @Security ApiKeyAuth
+// @Router /apps/installed/ignore [post]
+// @x-panel-log {"bodyKeys":["installId"],"paramKeys":[],"BeforeFuntions":[],"formatZH":"忽略应用 [installId] 版本升级","formatEN":"Application param update [installId]"}
+func (b *BaseApi) IgnoreUpgrade(c *gin.Context) {
+	var req request.AppInstalledIgnoreUpgrade
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.ErrorWithDetail(c, constant.CodeErrBadRequest, constant.ErrTypeInvalidParams, err)
+		return
+	}
+	if err := appInstallService.IgnoreUpgrade(req); err != nil {
+		helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypeInternalServer, err)
+		return
+	}
+	helper.SuccessWithOutData(c)
 }

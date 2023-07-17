@@ -24,20 +24,30 @@ export const updatePort = (param: Setting.PortUpdate) => {
     return http.post(`/settings/port/update`, param);
 };
 
+export const updateSSL = (param: Setting.SSLUpdate) => {
+    return http.post(`/settings/ssl/update`, param);
+};
+export const loadSSLInfo = () => {
+    return http.get<Setting.SSLInfo>(`/settings/ssl/info`);
+};
+
 export const handleExpired = (param: Setting.PasswordUpdate) => {
     return http.post(`/settings/expired/handle`, param);
 };
 
-export const syncTime = () => {
-    return http.post<string>(`/settings/time/sync`, {});
+export const loadTimeZone = () => {
+    return http.get<Array<string>>(`/settings/time/option`);
+};
+export const syncTime = (ntpSite: string) => {
+    return http.post<string>(`/settings/time/sync`, { ntpSite: ntpSite });
 };
 
 export const cleanMonitors = () => {
     return http.post(`/settings/monitor/clean`, {});
 };
 
-export const getMFA = () => {
-    return http.get<Setting.MFAInfo>(`/settings/mfa`, {});
+export const getMFA = (interval: number) => {
+    return http.get<Setting.MFAInfo>(`/settings/mfa/${interval}`, {});
 };
 
 export const loadDaemonJsonPath = () => {
@@ -54,16 +64,16 @@ export const loadBaseDir = () => {
 
 // backup
 export const handleBackup = (params: Backup.Backup) => {
-    return http.post(`/settings/backup/backup`, params, 400000);
+    return http.post(`/settings/backup/backup`, params, 600000);
 };
 export const handleRecover = (params: Backup.Recover) => {
-    return http.post(`/settings/backup/recover`, params, 400000);
+    return http.post(`/settings/backup/recover`, params, 600000);
 };
 export const handleRecoverByUpload = (params: Backup.Recover) => {
-    return http.post(`/settings/backup/recover/byupload`, params, 400000);
+    return http.post(`/settings/backup/recover/byupload`, params, 600000);
 };
 export const downloadBackupRecord = (params: Backup.RecordDownload) => {
-    return http.post<string>(`/settings/backup/record/download`, params);
+    return http.post<string>(`/settings/backup/record/download`, params, 600000);
 };
 export const deleteBackupRecord = (params: { ids: number[] }) => {
     return http.post(`/settings/backup/record/del`, params);
@@ -74,6 +84,9 @@ export const searchBackupRecords = (params: Backup.SearchBackupRecord) => {
 
 export const getBackupList = () => {
     return http.get<Array<Backup.BackupInfo>>(`/settings/backup/search`);
+};
+export const getOneDriveInfo = () => {
+    return http.get<string>(`/settings/backup/onedrive`);
 };
 export const getFilesFromBackup = (type: string) => {
     return http.post<Array<any>>(`/settings/backup/search/files`, { type: type });
@@ -98,7 +111,7 @@ export const editBackup = (params: Backup.BackupOperate) => {
     }
     return http.post(`/settings/backup/update`, reqest);
 };
-export const deleteBackup = (params: { ids: number[] }) => {
+export const deleteBackup = (params: { id: number }) => {
     return http.post(`/settings/backup/del`, params);
 };
 export const listBucket = (params: Backup.ForBucket) => {

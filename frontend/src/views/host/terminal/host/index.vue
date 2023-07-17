@@ -22,7 +22,7 @@
                                 @clear="search()"
                                 suffix-icon="Search"
                                 @keyup.enter="search()"
-                                @blur="search()"
+                                @change="search()"
                                 :placeholder="$t('commons.button.search')"
                             ></el-input>
                         </div>
@@ -47,8 +47,8 @@
                 >
                     <el-table-column type="selection" :selectable="selectable" fix />
                     <el-table-column :label="$t('terminal.ip')" prop="addr" fix />
-                    <el-table-column :label="$t('terminal.user')" show-overflow-tooltip prop="user" />
-                    <el-table-column :label="$t('terminal.port')" prop="port" />
+                    <el-table-column :label="$t('commons.login.username')" show-overflow-tooltip prop="user" />
+                    <el-table-column :label="$t('commons.table.port')" prop="port" />
                     <el-table-column :label="$t('commons.table.group')" show-overflow-tooltip prop="groupBelong">
                         <template #default="{ row }">
                             <span v-if="row.groupBelong === 'default'">{{ $t('website.default') }}</span>
@@ -78,11 +78,9 @@
 </template>
 
 <script setup lang="ts">
-import LayoutContent from '@/layout/layout-content.vue';
 import GroupDialog from '@/components/group/index.vue';
 import GroupChangeDialog from '@/views/host/terminal/host/change-group/index.vue';
 import OperateDialog from '@/views/host/terminal/host/operate/index.vue';
-import ComplexTable from '@/components/complex-table/index.vue';
 import { deleteHost, searchHosts } from '@/api/modules/host';
 import { GetGroupList } from '@/api/modules/group';
 import { reactive, ref } from 'vue';

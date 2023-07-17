@@ -1,7 +1,7 @@
 <template>
     <el-drawer v-model="drawerVisiable" :destroy-on-close="true" :close-on-click-modal="false" size="50%">
         <template #header>
-            <DrawerHeader :header="$t('cronjob.cronTask')" :back="handleClose" />
+            <DrawerHeader :header="title" :resource="dialogData.rowData?.name" :back="handleClose" />
         </template>
         <el-form ref="formRef" label-position="top" :model="dialogData.rowData" :rules="rules">
             <el-row type="flex" justify="center">
@@ -9,7 +9,7 @@
                     <el-form-item :label="$t('cronjob.taskType')" prop="type">
                         <el-select
                             v-if="dialogData.title === 'create'"
-                            style="width: 100%"
+                            class="selectClass"
                             @change="changeType"
                             v-model="dialogData.rowData!.type"
                         >
@@ -18,16 +18,22 @@
                             <el-option value="database" :label="$t('cronjob.database')" />
                             <el-option value="directory" :label="$t('cronjob.directory')" />
                             <el-option value="curl" :label="$t('cronjob.curl')" />
+                            <el-option value="ntp" :label="$t('cronjob.ntp')" />
+                            <el-option value="cutWebsiteLog" :label="$t('cronjob.cutWebsiteLog')" />
                         </el-select>
-                        <el-tag v-else>{{ dialogData.rowData!.type }}</el-tag>
+                        <el-tag v-else>{{ $t('cronjob.' + dialogData.rowData!.type) }}</el-tag>
                     </el-form-item>
 
                     <el-form-item :label="$t('cronjob.taskName')" prop="name">
-                        <el-input style="width: 100%" clearable v-model.trim="dialogData.rowData!.name" />
+                        <el-input
+                            :disabled="dialogData.title === 'edit'"
+                            clearable
+                            v-model.trim="dialogData.rowData!.name"
+                        />
                     </el-form-item>
 
                     <el-form-item :label="$t('cronjob.cronSpec')" prop="spec">
-                        <el-select style="width: 20%" v-model="dialogData.rowData!.specType">
+                        <el-select class="specTypeClass" v-model="dialogData.rowData!.specType">
                             <el-option
                                 v-for="item in specOptions"
                                 :key="item.label"
@@ -37,7 +43,7 @@
                         </el-select>
                         <el-select
                             v-if="dialogData.rowData!.specType === 'perWeek'"
-                            style="width: 12%; margin-left: 20px"
+                            class="specClass"
                             v-model="dialogData.rowData!.week"
                         >
                             <el-option
@@ -47,28 +53,45 @@
                                 :label="item.label"
                             />
                         </el-select>
-                        <el-input
-                            v-if="dialogData.rowData!.specType === 'perMonth' || dialogData.rowData!.specType === 'perNDay'"
-                            style="width: 20%; margin-left: 20px"
-                            v-model.number="dialogData.rowData!.day"
-                        >
+                        <el-input v-if="hasDay()" class="specClass" v-model.number="dialogData.rowData!.day">
                             <template #append>{{ $t('cronjob.day') }}</template>
                         </el-input>
+                        <el-input v-if="hasHour()" class="specClass" v-model.number="dialogData.rowData!.hour">
+                            <template #append>{{ $t('commons.units.hour') }}</template>
+                        </el-input>
                         <el-input
-                            v-if="dialogData.rowData!.specType !== 'perHour' && dialogData.rowData!.specType !== 'perNMinute'"
-                            style="width: 20%; margin-left: 20px"
-                            v-model.number="dialogData.rowData!.hour"
+                            v-if="dialogData.rowData!.specType !== 'perNSecond'"
+                            class="specClass"
+                            v-model.number="dialogData.rowData!.minute"
                         >
-                            <template #append>{{ $t('cronjob.hour') }}</template>
+                            <template #append>{{ $t('commons.units.minute') }}</template>
                         </el-input>
-                        <el-input style="width: 20%; margin-left: 20px" v-model.number="dialogData.rowData!.minute">
-                            <template #append>{{ $t('cronjob.minute') }}</template>
+                        <el-input
+                            v-if="dialogData.rowData!.specType === 'perNSecond'"
+                            class="specClass"
+                            v-model.number="dialogData.rowData!.second"
+                        >
+                            <template #append>{{ $t('commons.units.second') }}</template>
                         </el-input>
+                    </el-form-item>
+
+                    <el-form-item v-if="hasScript()">
+                        <el-checkbox v-model="dialogData.rowData!.inContainer">
+                            {{ $t('cronjob.containerCheckBox') }}
+                        </el-checkbox>
+                    </el-form-item>
+                    <el-form-item
+                        v-if="hasScript() && dialogData.rowData!.inContainer"
+                        :label="$t('cronjob.containerName')"
+                        prop="containerName"
+                    >
+                        <el-select class="selectClass" v-model="dialogData.rowData!.containerName">
+                            <el-option v-for="item in containerOptions" :key="item" :value="item" :label="item" />
+                        </el-select>
                     </el-form-item>
 
                     <el-form-item v-if="hasScript()" :label="$t('cronjob.shellContent')" prop="script">
                         <el-input
-                            style="width: 100%"
                             clearable
                             type="textarea"
                             :autosize="{ minRows: 3, maxRows: 6 }"
@@ -77,18 +100,23 @@
                     </el-form-item>
 
                     <el-form-item
-                        v-if="dialogData.rowData!.type === 'website'"
-                        :label="$t('cronjob.website')"
+                        v-if="dialogData.rowData!.type === 'website' || dialogData.rowData!.type === 'cutWebsiteLog'"
+                        :label="dialogData.rowData!.type === 'website' ? $t('cronjob.website'):$t('website.website')"
                         prop="website"
                     >
-                        <el-select style="width: 100%" v-model="dialogData.rowData!.website">
+                        <el-select class="selectClass" v-model="dialogData.rowData!.website">
+                            <el-option :label="$t('commons.table.all')" value="all" />
                             <el-option v-for="item in websiteOptions" :key="item" :value="item" :label="item" />
                         </el-select>
+                        <span class="input-help" v-if="dialogData.rowData!.type === 'cutWebsiteLog'">
+                            {{ $t('cronjob.cutWebsiteLogHelper') }}
+                        </span>
                     </el-form-item>
 
                     <div v-if="dialogData.rowData!.type === 'database'">
                         <el-form-item :label="$t('cronjob.database')" prop="dbName">
-                            <el-select style="width: 100%" clearable v-model="dialogData.rowData!.dbName">
+                            <el-select class="selectClass" clearable v-model="dialogData.rowData!.dbName">
+                                <el-option :label="$t('commons.table.all')" value="all" />
                                 <el-option v-for="item in mysqlInfo.dbNames" :key="item" :label="item" :value="item" />
                             </el-select>
                         </el-form-item>
@@ -99,7 +127,7 @@
                         :label="$t('cronjob.sourceDir')"
                         prop="sourceDir"
                     >
-                        <el-input style="width: 100%" v-model="dialogData.rowData!.sourceDir">
+                        <el-input v-model="dialogData.rowData!.sourceDir">
                             <template #prepend>
                                 <FileList @choose="loadDir" :dir="true"></FileList>
                             </template>
@@ -108,7 +136,7 @@
 
                     <div v-if="isBackup()">
                         <el-form-item :label="$t('cronjob.target')" prop="targetDirID">
-                            <el-select style="width: 100%" v-model="dialogData.rowData!.targetDirID">
+                            <el-select class="selectClass" v-model="dialogData.rowData!.targetDirID">
                                 <el-option
                                     v-for="item in backupOptions"
                                     :key="item.label"
@@ -116,25 +144,38 @@
                                     :label="item.label"
                                 />
                             </el-select>
+                            <span class="input-help">
+                                {{ $t('cronjob.targetHelper') }}
+                                <el-link
+                                    style="font-size: 12px"
+                                    icon="Position"
+                                    @click="goRouter('/settings/backupaccount')"
+                                    type="primary"
+                                >
+                                    {{ $t('firewall.quickJump') }}
+                                </el-link>
+                            </span>
                         </el-form-item>
                         <el-form-item v-if="dialogData.rowData!.targetDirID !== localDirID">
                             <el-checkbox v-model="dialogData.rowData!.keepLocal">
                                 {{ $t('cronjob.saveLocal') }}
                             </el-checkbox>
                         </el-form-item>
-                        <el-form-item :label="$t('cronjob.retainCopies')" prop="retainCopies">
-                            <el-input-number
-                                :min="1"
-                                :max="30"
-                                step-strictly
-                                :step="1"
-                                v-model.number="dialogData.rowData!.retainCopies"
-                            ></el-input-number>
-                        </el-form-item>
                     </div>
 
+                    <el-form-item :label="$t('cronjob.retainCopies')" prop="retainCopies">
+                        <el-input-number
+                            :min="1"
+                            :max="300"
+                            step-strictly
+                            :step="1"
+                            v-model.number="dialogData.rowData!.retainCopies"
+                        ></el-input-number>
+                        <span class="input-help">{{ $t('cronjob.retainCopiesHelper') }}</span>
+                    </el-form-item>
+
                     <el-form-item v-if="dialogData.rowData!.type === 'curl'" :label="$t('cronjob.url')" prop="url">
-                        <el-input style="width: 100%" clearable v-model.trim="dialogData.rowData!.url" />
+                        <el-input clearable v-model.trim="dialogData.rowData!.url" />
                     </el-form-item>
 
                     <el-form-item
@@ -143,7 +184,6 @@
                         prop="exclusionRules"
                     >
                         <el-input
-                            style="width: 100%"
                             type="textarea"
                             :placeholder="$t('cronjob.rulesHelper')"
                             :autosize="{ minRows: 3, maxRows: 6 }"
@@ -179,6 +219,9 @@ import { CheckAppInstalled } from '@/api/modules/app';
 import { GetWebsiteOptions } from '@/api/modules/website';
 import DrawerHeader from '@/components/drawer-header/index.vue';
 import { MsgError, MsgSuccess } from '@/utils/message';
+import { useRouter } from 'vue-router';
+import { listContainer } from '@/api/modules/container';
+const router = useRouter();
 
 interface DialogProps {
     title: string;
@@ -195,13 +238,24 @@ const acceptParams = (params: DialogProps): void => {
     if (dialogData.value.title === 'create') {
         changeType();
     }
-    title.value = i18n.global.t('commons.button.' + dialogData.value.title);
+    title.value = i18n.global.t('cronjob.' + dialogData.value.title);
+    if (dialogData.value?.rowData?.exclusionRules) {
+        dialogData.value.rowData.exclusionRules = dialogData.value.rowData.exclusionRules.replaceAll(',', '\n');
+    }
+    if (dialogData.value?.rowData?.containerName) {
+        dialogData.value.rowData.inContainer = true;
+    }
     drawerVisiable.value = true;
     checkMysqlInstalled();
     loadBackups();
     loadWebsites();
+    loadContainers();
 };
 const emit = defineEmits<{ (e: 'search'): void }>();
+
+const goRouter = async (path: string) => {
+    router.push({ path: path });
+};
 
 const handleClose = () => {
     drawerVisiable.value = false;
@@ -209,6 +263,7 @@ const handleClose = () => {
 
 const localDirID = ref();
 
+const containerOptions = ref();
 const websiteOptions = ref();
 const backupOptions = ref();
 
@@ -270,6 +325,11 @@ const varifySpec = (rule: any, value: any, callback: any) => {
                 callback(new Error(i18n.global.t('cronjob.cronSpecRule')));
             }
             break;
+        case 'perNSecond':
+            if (!Number.isInteger(dialogData.value.rowData!.second)) {
+                callback(new Error(i18n.global.t('cronjob.cronSpecRule')));
+            }
+            break;
     }
     callback();
 };
@@ -282,6 +342,7 @@ const specOptions = [
     { label: i18n.global.t('cronjob.perNDay'), value: 'perNDay' },
     { label: i18n.global.t('cronjob.perNHour'), value: 'perNHour' },
     { label: i18n.global.t('cronjob.perNMinute'), value: 'perNMinute' },
+    { label: i18n.global.t('cronjob.perNSecond'), value: 'perNSecond' },
 ];
 const weekOptions = [
     { label: i18n.global.t('cronjob.monday'), value: 1 },
@@ -290,7 +351,7 @@ const weekOptions = [
     { label: i18n.global.t('cronjob.thursday'), value: 4 },
     { label: i18n.global.t('cronjob.friday'), value: 5 },
     { label: i18n.global.t('cronjob.saturday'), value: 6 },
-    { label: i18n.global.t('cronjob.sunday'), value: 7 },
+    { label: i18n.global.t('cronjob.sunday'), value: 0 },
 ];
 const rules = reactive({
     name: [Rules.requiredInput],
@@ -309,7 +370,7 @@ const rules = reactive({
     website: [Rules.requiredSelect],
     dbName: [Rules.requiredSelect],
     url: [Rules.requiredInput],
-    sourceDir: [Rules.requiredSelect],
+    sourceDir: [Rules.requiredInput],
     targetDirID: [Rules.requiredSelect, Rules.number],
     retainCopies: [Rules.number],
 });
@@ -319,6 +380,17 @@ const formRef = ref<FormInstance>();
 
 const loadDir = async (path: string) => {
     dialogData.value.rowData!.sourceDir = path;
+};
+
+const hasDay = () => {
+    return dialogData.value.rowData!.specType === 'perMonth' || dialogData.value.rowData!.specType === 'perNDay';
+};
+const hasHour = () => {
+    return (
+        dialogData.value.rowData!.specType !== 'perHour' &&
+        dialogData.value.rowData!.specType !== 'perNMinute' &&
+        dialogData.value.rowData!.specType !== 'perNSecond'
+    );
 };
 
 const changeType = () => {
@@ -373,7 +445,12 @@ const loadBackups = async () => {
 
 const loadWebsites = async () => {
     const res = await GetWebsiteOptions();
-    websiteOptions.value = res.data;
+    websiteOptions.value = res.data || [];
+};
+
+const loadContainers = async () => {
+    const res = await listContainer();
+    containerOptions.value = res.data || [];
 };
 
 const checkMysqlInstalled = async () => {
@@ -405,17 +482,21 @@ function checkScript() {
         case 'perMonth':
             return row.day > 0 && row.day < 32 && row.hour >= 0 && row.hour < 24 && row.minute >= 0 && row.minute < 60;
         case 'perWeek':
-            return row.week > 0 && row.week < 8 && row.hour >= 0 && row.hour < 24 && row.minute >= 0 && row.minute < 60;
+            return (
+                row.week >= 0 && row.week < 7 && row.hour >= 0 && row.hour < 24 && row.minute >= 0 && row.minute < 60
+            );
         case 'perDay':
             return row.hour >= 0 && row.hour < 24 && row.minute >= 0 && row.minute < 60;
         case 'perHour':
-            return row.minute > 0 && row.minute < 60;
+            return row.minute >= 0 && row.minute < 60;
         case 'perNDay':
             return row.day > 0 && row.day < 366 && row.hour >= 0 && row.hour < 24 && row.minute >= 0 && row.minute < 60;
         case 'perNHour':
             return row.hour > 0 && row.hour < 8784 && row.minute >= 0 && row.minute < 60;
         case 'perNMinute':
             return row.minute > 0 && row.minute < 527040;
+        case 'perNSecond':
+            return row.second > 0 && row.second < 31622400;
     }
 }
 
@@ -424,6 +505,7 @@ const onSubmit = async (formEl: FormInstance | undefined) => {
     dialogData.value.rowData.day = Number(dialogData.value.rowData.day);
     dialogData.value.rowData.hour = Number(dialogData.value.rowData.hour);
     dialogData.value.rowData.minute = Number(dialogData.value.rowData.minute);
+    dialogData.value.rowData.second = Number(dialogData.value.rowData.second);
     if (!checkScript()) {
         MsgError(i18n.global.t('cronjob.cronSpecHelper'));
         return;
@@ -431,6 +513,12 @@ const onSubmit = async (formEl: FormInstance | undefined) => {
     if (!formEl) return;
     formEl.validate(async (valid) => {
         if (!valid) return;
+        if (!dialogData.value.rowData.inContainer) {
+            dialogData.value.rowData.containerName = '';
+        }
+        if (dialogData.value?.rowData?.exclusionRules) {
+            dialogData.value.rowData.exclusionRules = dialogData.value.rowData.exclusionRules.replaceAll('\n', ',');
+        }
         if (!dialogData.value.rowData) return;
         if (dialogData.value.title === 'create') {
             await addCronjob(dialogData.value.rowData);
@@ -449,3 +537,27 @@ defineExpose({
     acceptParams,
 });
 </script>
+<style scoped lang="scss">
+.specClass {
+    width: 20% !important;
+    margin-left: 20px;
+}
+@media only screen and (max-width: 1000px) {
+    .specClass {
+        width: 100% !important;
+        margin-top: 20px;
+        margin-left: 0;
+    }
+}
+.specTypeClass {
+    width: 20% !important;
+}
+@media only screen and (max-width: 1000px) {
+    .specTypeClass {
+        width: 100% !important;
+    }
+}
+.selectClass {
+    width: 100%;
+}
+</style>

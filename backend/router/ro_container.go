@@ -19,10 +19,18 @@ func (s *ContainerRouter) InitContainerRouter(Router *gin.RouterGroup) {
 		baRouter.GET("/stats/:id", baseApi.ContainerStats)
 
 		baRouter.POST("", baseApi.ContainerCreate)
+		baRouter.POST("/update", baseApi.ContainerUpdate)
+		baRouter.POST("/upgrade", baseApi.ContainerUpgrade)
+		baRouter.POST("/info", baseApi.ContainerInfo)
 		baRouter.POST("/search", baseApi.SearchContainer)
-		baRouter.POST("/search/log", baseApi.ContainerLogs)
+		baRouter.POST("/list", baseApi.ListContainer)
+		baRouter.GET("/list/stats", baseApi.ContainerListStats)
+		baRouter.GET("/search/log", baseApi.ContainerLogs)
+		baRouter.GET("/limit", baseApi.LoadResouceLimit)
+		baRouter.POST("/clean/log", baseApi.CleanContainerLog)
 		baRouter.POST("/inspect", baseApi.Inspect)
 		baRouter.POST("/operate", baseApi.ContainerOperation)
+		baRouter.POST("/prune", baseApi.ContainerPrune)
 
 		baRouter.GET("/repo", baseApi.ListRepo)
 		baRouter.POST("/repo/status", baseApi.CheckRepoStatus)
@@ -53,10 +61,11 @@ func (s *ContainerRouter) InitContainerRouter(Router *gin.RouterGroup) {
 		baRouter.POST("/image/tag", baseApi.ImageTag)
 		baRouter.POST("/image/build", baseApi.ImageBuild)
 
-		baRouter.GET("/volume", baseApi.ListVolume)
+		baRouter.GET("/network", baseApi.ListNetwork)
 		baRouter.POST("/network/del", baseApi.DeleteNetwork)
 		baRouter.POST("/network/search", baseApi.SearchNetwork)
 		baRouter.POST("/network", baseApi.CreateNetwork)
+		baRouter.GET("/volume", baseApi.ListVolume)
 		baRouter.POST("/volume/del", baseApi.DeleteVolume)
 		baRouter.POST("/volume/search", baseApi.SearchVolume)
 		baRouter.POST("/volume", baseApi.CreateVolume)
@@ -66,6 +75,7 @@ func (s *ContainerRouter) InitContainerRouter(Router *gin.RouterGroup) {
 		baRouter.GET("/docker/status", baseApi.LoadDockerStatus)
 		baRouter.POST("/docker/operate", baseApi.OperateDocker)
 		baRouter.POST("/daemonjson/update", baseApi.UpdateDaemonJson)
+		baRouter.POST("/logoption/update", baseApi.UpdateLogOption)
 		baRouter.POST("/daemonjson/update/byfile", baseApi.UpdateDaemonJsonByFile)
 	}
 }

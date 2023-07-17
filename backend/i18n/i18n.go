@@ -46,6 +46,13 @@ func GetErrMsg(key string, maps map[string]interface{}) string {
 	return content
 }
 
+func GetMsgByKey(key string) string {
+	content := ginI18n.MustGetMessage(&i18n.LocalizeConfig{
+		MessageID: key,
+	})
+	return content
+}
+
 //go:embed lang/*
 var fs embed.FS
 
@@ -53,7 +60,7 @@ func GinI18nLocalize() gin.HandlerFunc {
 	return ginI18n.Localize(
 		ginI18n.WithBundle(&ginI18n.BundleCfg{
 			RootPath:         "./lang",
-			AcceptLanguage:   []language.Tag{language.Chinese, language.English},
+			AcceptLanguage:   []language.Tag{language.Chinese, language.English, language.TraditionalChinese},
 			DefaultLanguage:  language.Chinese,
 			FormatBundleFile: "yaml",
 			UnmarshalFunc:    yaml.Unmarshal,

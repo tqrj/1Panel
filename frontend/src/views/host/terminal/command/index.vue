@@ -44,6 +44,7 @@
             <el-row type="flex" justify="center">
                 <el-col :span="22">
                     <el-form
+                        @submit.prevent
                         ref="commandInfoRef"
                         label-width="100px"
                         label-position="top"
@@ -72,8 +73,6 @@
 </template>
 
 <script setup lang="ts">
-import LayoutContent from '@/layout/layout-content.vue';
-import ComplexTable from '@/components/complex-table/index.vue';
 import { Command } from '@/api/interface/command';
 import { addCommand, editCommand, deleteCommand, getCommandPage } from '@/api/modules/host';
 import { reactive, ref } from 'vue';

@@ -7,6 +7,7 @@ import (
 	"github.com/1Panel-dev/1Panel/backend/app/api/v1/helper"
 	"github.com/1Panel-dev/1Panel/backend/app/repo"
 	"github.com/1Panel-dev/1Panel/backend/constant"
+	"github.com/1Panel-dev/1Panel/backend/utils/common"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,7 +16,7 @@ func PasswordExpired() gin.HandlerFunc {
 		settingRepo := repo.NewISettingRepo()
 		setting, err := settingRepo.Get(settingRepo.WithByKey("ExpirationDays"))
 		if err != nil {
-			helper.ErrorWithDetail(c, constant.CodePasswordExpired, constant.ErrTypePasswordExpired, err)
+			helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypePasswordExpired, err)
 			return
 		}
 		expiredDays, _ := strconv.Atoi(setting.Value)
@@ -26,10 +27,11 @@ func PasswordExpired() gin.HandlerFunc {
 
 		extime, err := settingRepo.Get(settingRepo.WithByKey("ExpirationTime"))
 		if err != nil {
-			helper.ErrorWithDetail(c, constant.CodePasswordExpired, constant.ErrTypePasswordExpired, err)
+			helper.ErrorWithDetail(c, constant.CodeErrInternalServer, constant.ErrTypePasswordExpired, err)
 			return
 		}
-		expiredTime, err := time.Parse("2006-01-02 15:04:05", extime.Value)
+		loc, _ := time.LoadLocation(common.LoadTimeZone())
+		expiredTime, err := time.ParseInLocation("2006-01-02 15:04:05", extime.Value, loc)
 		if err != nil {
 			helper.ErrorWithDetail(c, constant.CodePasswordExpired, constant.ErrTypePasswordExpired, err)
 			return

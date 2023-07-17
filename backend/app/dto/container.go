@@ -5,6 +5,8 @@ import "time"
 type PageContainer struct {
 	PageInfo
 	Name    string `json:"name"`
+	OrderBy string `json:"orderBy"`
+	Order   string `json:"order"`
 	Filters string `json:"filters"`
 }
 
@@ -22,18 +24,29 @@ type ContainerInfo struct {
 	State       string `json:"state"`
 	RunTime     string `json:"runTime"`
 
+	Ports []string `json:"ports"`
+
 	IsFromApp     bool `json:"isFromApp"`
 	IsFromCompose bool `json:"isFromCompose"`
 }
 
-type ContainerCreate struct {
+type ResourceLimit struct {
+	CPU    int `json:"cpu"`
+	Memory int `json:"memory"`
+}
+
+type ContainerOperate struct {
+	ContainerID     string         `json:"containerID"`
+	ForcePull       bool           `json:"forcePull"`
 	Name            string         `json:"name"`
 	Image           string         `json:"image"`
+	Network         string         `json:"network"`
 	PublishAllPorts bool           `json:"publishAllPorts"`
 	ExposedPorts    []PortHelper   `json:"exposedPorts"`
 	Cmd             []string       `json:"cmd"`
-	NanoCPUs        int64          `json:"nanoCPUs"`
-	Memory          int64          `json:"memory"`
+	CPUShares       int64          `json:"cpuShares"`
+	NanoCPUs        float64        `json:"nanoCPUs"`
+	Memory          float64        `json:"memory"`
 	AutoRemove      bool           `json:"autoRemove"`
 	Volumes         []VolumeHelper `json:"volumes"`
 	Labels          []string       `json:"labels"`
@@ -41,7 +54,19 @@ type ContainerCreate struct {
 	RestartPolicy   string         `json:"restartPolicy"`
 }
 
-type ContainterStats struct {
+type ContainerUpgrade struct {
+	Name      string `json:"name" validate:"required"`
+	Image     string `json:"image" validate:"required"`
+	ForcePull bool   `json:"forcePull"`
+}
+
+type ContainerListStats struct {
+	ContainerID   string  `json:"containerID"`
+	CPUPercent    float64 `json:"cpuPercent"`
+	MemoryPercent float64 `json:"memoryPercent"`
+}
+
+type ContainerStats struct {
 	CPUPercent float64 `json:"cpuPercent"`
 	Memory     float64 `json:"memory"`
 	Cache      float64 `json:"cache"`
@@ -59,19 +84,26 @@ type VolumeHelper struct {
 	Mode         string `json:"mode"`
 }
 type PortHelper struct {
-	ContainerPort int `json:"containerPort"`
-	HostPort      int `json:"hostPort"`
-}
-
-type ContainerLog struct {
-	ContainerID string `json:"containerID" validate:"required"`
-	Mode        string `json:"mode" validate:"required"`
+	HostIP        string `json:"hostIP"`
+	HostPort      string `json:"hostPort"`
+	ContainerPort string `json:"containerPort"`
+	Protocol      string `json:"protocol"`
 }
 
 type ContainerOperation struct {
 	Name      string `json:"name" validate:"required"`
 	Operation string `json:"operation" validate:"required,oneof=start stop restart kill pause unpause rename remove"`
 	NewName   string `json:"newName"`
+}
+
+type ContainerPrune struct {
+	PruneType  string `json:"pruneType" validate:"required,oneof=container image volume network"`
+	WithTagAll bool   `json:"withTagAll"`
+}
+
+type ContainerPruneReport struct {
+	DeletedNumber  int `json:"deletedNumber"`
+	SpaceReclaimed int `json:"spaceReclaimed"`
 }
 
 type Network struct {
@@ -85,7 +117,7 @@ type Network struct {
 	CreatedAt  time.Time `json:"createdAt"`
 	Attachable bool      `json:"attachable"`
 }
-type NetworkCreat struct {
+type NetworkCreate struct {
 	Name    string   `json:"name"`
 	Driver  string   `json:"driver"`
 	Options []string `json:"options"`
@@ -102,7 +134,7 @@ type Volume struct {
 	Mountpoint string    `json:"mountpoint"`
 	CreatedAt  time.Time `json:"createdAt"`
 }
-type VolumeCreat struct {
+type VolumeCreate struct {
 	Name    string   `json:"name"`
 	Driver  string   `json:"driver"`
 	Options []string `json:"options"`
@@ -140,6 +172,7 @@ type ComposeOperation struct {
 	Name      string `json:"name" validate:"required"`
 	Path      string `json:"path" validate:"required"`
 	Operation string `json:"operation" validate:"required,oneof=start stop down"`
+	WithFile  bool   `json:"withFile"`
 }
 type ComposeUpdate struct {
 	Name    string `json:"name" validate:"required"`

@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -38,7 +37,7 @@ func (u *BackupService) RedisBackup() error {
 	timeNow := time.Now().Format("20060102150405")
 	fileName := fmt.Sprintf("%s.rdb", timeNow)
 	if appendonly == "yes" {
-		if redisInfo.Version == "6.0.16" {
+		if strings.HasPrefix(redisInfo.Version, "6.") {
 			fileName = fmt.Sprintf("%s.aof", timeNow)
 		} else {
 			fileName = fmt.Sprintf("%s.tar.gz", timeNow)
@@ -121,10 +120,10 @@ func handleRedisRecover(redisInfo *repo.RootInfo, recoverFile string, isRollback
 	}
 
 	if appendonly == "yes" {
-		if redisInfo.Version == "6.0.16" && !strings.HasSuffix(recoverFile, ".aof") {
+		if strings.HasPrefix(redisInfo.Version, "6.") && !strings.HasSuffix(recoverFile, ".aof") {
 			return buserr.New(constant.ErrTypeOfRedis)
 		}
-		if redisInfo.Version == "7.0.5" && !strings.HasSuffix(recoverFile, ".tar.gz") {
+		if strings.HasPrefix(redisInfo.Version, "7.") && !strings.HasSuffix(recoverFile, ".tar.gz") {
 			return buserr.New(constant.ErrTypeOfRedis)
 		}
 	} else {
@@ -138,7 +137,7 @@ func handleRedisRecover(redisInfo *repo.RootInfo, recoverFile string, isRollback
 	if !isRollback {
 		suffix := "rdb"
 		if appendonly == "yes" {
-			if redisInfo.Version == "6.0.16" {
+			if strings.HasPrefix(redisInfo.Version, "6.") {
 				suffix = "aof"
 			} else {
 				suffix = "tar.gz"
@@ -166,21 +165,21 @@ func handleRedisRecover(redisInfo *repo.RootInfo, recoverFile string, isRollback
 	if _, err := compose.Down(composeDir + "/docker-compose.yml"); err != nil {
 		return err
 	}
-	if appendonly == "yes" && redisInfo.Version == "7.0.5" {
+	if appendonly == "yes" && strings.HasPrefix(redisInfo.Version, "7.") {
 		redisDataDir := fmt.Sprintf("%s/%s/%s/data", constant.AppInstallDir, "redis", redisInfo.Name)
 		if err := handleUnTar(recoverFile, redisDataDir); err != nil {
 			return err
 		}
 	} else {
 		itemName := "dump.rdb"
-		if appendonly == "yes" && redisInfo.Version == "6.0.16" {
+		if appendonly == "yes" && strings.HasPrefix(redisInfo.Version, "6.") {
 			itemName = "appendonly.aof"
 		}
-		input, err := ioutil.ReadFile(recoverFile)
+		input, err := os.ReadFile(recoverFile)
 		if err != nil {
 			return err
 		}
-		if err = ioutil.WriteFile(composeDir+"/data/"+itemName, input, 0640); err != nil {
+		if err = os.WriteFile(composeDir+"/data/"+itemName, input, 0640); err != nil {
 			return err
 		}
 	}

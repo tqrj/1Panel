@@ -2,9 +2,10 @@ package middleware
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -77,9 +78,9 @@ func OperationLog() gin.HandlerFunc {
 
 		formatMap := make(map[string]interface{})
 		if len(operationDic.BodyKeys) != 0 {
-			body, err := ioutil.ReadAll(c.Request.Body)
+			body, err := io.ReadAll(c.Request.Body)
 			if err == nil {
-				c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+				c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 			}
 			bodyMap := make(map[string]interface{})
 			_ = json.Unmarshal(body, &bodyMap)
@@ -95,10 +96,10 @@ func OperationLog() gin.HandlerFunc {
 					if funcs.InputValue == key {
 						var names []string
 						if funcs.IsList {
-							sql := fmt.Sprintf("SELECT %s FROM %s where %s in (?);", funcs.OutputColume, funcs.DB, funcs.InputColume)
+							sql := fmt.Sprintf("SELECT %s FROM %s where %s in (?);", funcs.OutputColumn, funcs.DB, funcs.InputColumn)
 							_ = global.DB.Raw(sql, value).Scan(&names)
 						} else {
-							_ = global.DB.Raw(fmt.Sprintf("select %s from %s where %s = ?;", funcs.OutputColume, funcs.DB, funcs.InputColume), value).Scan(&names)
+							_ = global.DB.Raw(fmt.Sprintf("select %s from %s where %s = ?;", funcs.OutputColumn, funcs.DB, funcs.InputColumn), value).Scan(&names)
 						}
 						formatMap[funcs.OutputValue] = strings.Join(names, ",")
 						break
@@ -117,8 +118,8 @@ func OperationLog() gin.HandlerFunc {
 				}
 			}
 		}
-		record.DetailEN = operationDic.FormatEN
-		record.DetailZH = operationDic.FormatZH
+		record.DetailEN = strings.ReplaceAll(operationDic.FormatEN, "[]", "")
+		record.DetailZH = strings.ReplaceAll(operationDic.FormatZH, "[]", "")
 
 		writer := responseBodyWriter{
 			ResponseWriter: c.Writer,
@@ -129,8 +130,26 @@ func OperationLog() gin.HandlerFunc {
 
 		c.Next()
 
+		datas := writer.body.Bytes()
+		if c.Request.Header.Get("Content-Encoding") == "gzip" {
+			buf := bytes.NewReader(writer.body.Bytes())
+			reader, err := gzip.NewReader(buf)
+			if err != nil {
+				record.Status = constant.StatusFailed
+				record.Message = fmt.Sprintf("gzip new reader failed, err: %v", err)
+				latency := time.Since(now)
+				record.Latency = latency
+
+				if err := service.NewILogService().CreateOperationLog(record); err != nil {
+					global.LOG.Errorf("create operation record failed, err: %v", err)
+				}
+				return
+			}
+			defer reader.Close()
+			datas, _ = io.ReadAll(reader)
+		}
 		var res response
-		_ = json.Unmarshal(writer.body.Bytes(), &res)
+		_ = json.Unmarshal(datas, &res)
 		if res.Code == 200 {
 			record.Status = constant.StatusSuccess
 		} else {
@@ -161,11 +180,11 @@ type operationJson struct {
 	FormatEN       string         `json:"formatEN"`
 }
 type functionInfo struct {
-	InputColume  string `json:"input_colume"`
+	InputColumn  string `json:"input_column"`
 	InputValue   string `json:"input_value"`
 	IsList       bool   `json:"isList"`
 	DB           string `json:"db"`
-	OutputColume string `json:"output_colume"`
+	OutputColumn string `json:"output_column"`
 	OutputValue  string `json:"output_value"`
 }
 

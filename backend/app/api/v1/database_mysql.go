@@ -54,7 +54,7 @@ func (b *BaseApi) CreateMysql(c *gin.Context) {
 // @Success 200
 // @Security ApiKeyAuth
 // @Router /databases/description/update [post]
-// @x-panel-log {"bodyKeys":["id","description"],"paramKeys":[],"BeforeFuntions":[{"input_colume":"id","input_value":"id","isList":false,"db":"database_mysqls","output_colume":"name","output_value":"name"}],"formatZH":"mysql 数据库 [name] 描述信息修改 [description]","formatEN":"The description of the mysql database [name] is modified => [description]"}
+// @x-panel-log {"bodyKeys":["id","description"],"paramKeys":[],"BeforeFuntions":[{"input_column":"id","input_value":"id","isList":false,"db":"database_mysqls","output_column":"name","output_value":"name"}],"formatZH":"mysql 数据库 [name] 描述信息修改 [description]","formatEN":"The description of the mysql database [name] is modified => [description]"}
 func (b *BaseApi) UpdateMysqlDescription(c *gin.Context) {
 	var req dto.UpdateDescription
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -80,7 +80,7 @@ func (b *BaseApi) UpdateMysqlDescription(c *gin.Context) {
 // @Success 200
 // @Security ApiKeyAuth
 // @Router /databases/change/password [post]
-// @x-panel-log {"bodyKeys":["id"],"paramKeys":[],"BeforeFuntions":[{"input_colume":"id","input_value":"id","isList":false,"db":"database_mysqls","output_colume":"name","output_value":"name"}],"formatZH":"更新数据库 [name] 密码","formatEN":"Update database [name] password"}
+// @x-panel-log {"bodyKeys":["id"],"paramKeys":[],"BeforeFuntions":[{"input_column":"id","input_value":"id","isList":false,"db":"database_mysqls","output_column":"name","output_value":"name"}],"formatZH":"更新数据库 [name] 密码","formatEN":"Update database [name] password"}
 func (b *BaseApi) ChangeMysqlPassword(c *gin.Context) {
 	var req dto.ChangeDBInfo
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -115,7 +115,7 @@ func (b *BaseApi) ChangeMysqlPassword(c *gin.Context) {
 // @Success 200
 // @Security ApiKeyAuth
 // @Router /databases/change/access [post]
-// @x-panel-log {"bodyKeys":["id"],"paramKeys":[],"BeforeFuntions":[{"input_colume":"id","input_value":"id","isList":false,"db":"database_mysqls","output_colume":"name","output_value":"name"}],"formatZH":"更新数据库 [name] 访问权限","formatEN":"Update database [name] access"}
+// @x-panel-log {"bodyKeys":["id"],"paramKeys":[],"BeforeFuntions":[{"input_column":"id","input_value":"id","isList":false,"db":"database_mysqls","output_column":"name","output_value":"name"}],"formatZH":"更新数据库 [name] 访问权限","formatEN":"Update database [name] access"}
 func (b *BaseApi) ChangeMysqlAccess(c *gin.Context) {
 	var req dto.ChangeDBInfo
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -216,7 +216,7 @@ func (b *BaseApi) SearchMysql(c *gin.Context) {
 // @Description 获取 mysql 数据库列表
 // @Accept json
 // @Param request body dto.PageInfo true "request"
-// @Success 200 {anrry} string
+// @Success 200 {array} string
 // @Security ApiKeyAuth
 // @Router /databases/options [get]
 func (b *BaseApi) ListDBName(c *gin.Context) {
@@ -234,7 +234,7 @@ func (b *BaseApi) ListDBName(c *gin.Context) {
 // @Description Mysql 数据库删除前检查
 // @Accept json
 // @Param request body dto.OperateByID true "request"
-// @Success 200 {anrry} string
+// @Success 200 {array} string
 // @Security ApiKeyAuth
 // @Router /databases/del/check [post]
 func (b *BaseApi) DeleteCheckMysql(c *gin.Context) {
@@ -264,7 +264,7 @@ func (b *BaseApi) DeleteCheckMysql(c *gin.Context) {
 // @Success 200
 // @Security ApiKeyAuth
 // @Router /databases/del [post]
-// @x-panel-log {"bodyKeys":["id"],"paramKeys":[],"BeforeFuntions":[{"input_colume":"id","input_value":"id","isList":false,"db":"database_mysqls","output_colume":"name","output_value":"name"}],"formatZH":"删除 mysql 数据库 [name]","formatEN":"delete mysql database [name]"}
+// @x-panel-log {"bodyKeys":["id"],"paramKeys":[],"BeforeFuntions":[{"input_column":"id","input_value":"id","isList":false,"db":"database_mysqls","output_column":"name","output_value":"name"}],"formatZH":"删除 mysql 数据库 [name]","formatEN":"delete mysql database [name]"}
 func (b *BaseApi) DeleteMysql(c *gin.Context) {
 	var req dto.MysqlDBDelete
 	if err := c.ShouldBindJSON(&req); err != nil {

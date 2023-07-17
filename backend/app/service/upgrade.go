@@ -2,9 +2,8 @@ package service
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"runtime"
@@ -12,6 +11,8 @@ import (
 	"time"
 
 	"github.com/1Panel-dev/1Panel/backend/app/dto"
+	"github.com/1Panel-dev/1Panel/backend/buserr"
+	"github.com/1Panel-dev/1Panel/backend/constant"
 	"github.com/1Panel-dev/1Panel/backend/global"
 	"github.com/1Panel-dev/1Panel/backend/utils/cmd"
 	"github.com/1Panel-dev/1Panel/backend/utils/common"
@@ -67,7 +68,7 @@ func (u *UpgradeService) SearchUpgrade() (*dto.UpgradeInfo, error) {
 	notes, err := u.loadReleaseNotes(fmt.Sprintf("%s/%s/%s/release/1panel-%s-release-notes", global.CONF.System.RepoUrl, global.CONF.System.Mode, itemVersion, itemVersion))
 
 	if err != nil {
-		return nil, fmt.Errorf("load relase-notes of version %s failed, err: %v", latestVersion, err)
+		return nil, fmt.Errorf("load releases-notes of version %s failed, err: %v", latestVersion, err)
 	}
 	upgrade.ReleaseNote = notes
 	return &upgrade, nil
@@ -76,7 +77,7 @@ func (u *UpgradeService) SearchUpgrade() (*dto.UpgradeInfo, error) {
 func (u *UpgradeService) LoadNotes(req dto.Upgrade) (string, error) {
 	notes, err := u.loadReleaseNotes(fmt.Sprintf("%s/%s/%s/release/1panel-%s-release-notes", global.CONF.System.RepoUrl, global.CONF.System.Mode, req.Version, req.Version))
 	if err != nil {
-		return "", fmt.Errorf("load relase-notes of version %s failed, err: %v", req.Version, err)
+		return "", fmt.Errorf("load releases-notes of version %s failed, err: %v", req.Version, err)
 	}
 	return notes, nil
 }
@@ -93,9 +94,13 @@ func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
 	if err := os.MkdirAll(originalDir, os.ModePerm); err != nil {
 		return err
 	}
+	itemArch, err := loadArch()
+	if err != nil {
+		return err
+	}
 
 	downloadPath := fmt.Sprintf("%s/%s/%s/release", global.CONF.System.RepoUrl, global.CONF.System.Mode, req.Version)
-	fileName := fmt.Sprintf("1panel-%s-%s-%s.tar.gz", req.Version, "linux", runtime.GOARCH)
+	fileName := fmt.Sprintf("1panel-%s-%s-%s.tar.gz", req.Version, "linux", itemArch)
 	_ = settingRepo.Update("SystemStatus", "Upgrading")
 	go func() {
 		if err := fileOp.DownloadFile(downloadPath+"/"+fileName, rootDir+"/"+fileName); err != nil {
@@ -148,7 +153,7 @@ func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
 		go writeLogs(req.Version)
 		_ = settingRepo.Update("SystemVersion", req.Version)
 		_ = settingRepo.Update("SystemStatus", "Free")
-		_, _ = cmd.Exec("systemctl daemon-reload && systemctl restart 1panel.service")
+		_, _ = cmd.ExecWithTimeOut("systemctl daemon-reload && systemctl restart 1panel.service", 1*time.Minute)
 	}()
 	return nil
 }
@@ -200,12 +205,12 @@ func (u *UpgradeService) loadVersion(isLatest bool, currentVersion string) (stri
 	}
 	latestVersionRes, err := http.Get(path)
 	if err != nil {
-		return "", err
+		return "", buserr.New(constant.ErrOSSConn)
 	}
 	defer latestVersionRes.Body.Close()
-	version, err := ioutil.ReadAll(latestVersionRes.Body)
+	version, err := io.ReadAll(latestVersionRes.Body)
 	if err != nil {
-		return "", err
+		return "", buserr.New(constant.ErrOSSConn)
 	}
 	if isLatest {
 		return string(version), nil
@@ -213,7 +218,7 @@ func (u *UpgradeService) loadVersion(isLatest bool, currentVersion string) (stri
 
 	versionMap := make(map[string]string)
 	if err := json.Unmarshal(version, &versionMap); err != nil {
-		return "", fmt.Errorf("load version map failed, err: %v", err)
+		return "", buserr.New(constant.ErrOSSConn)
 	}
 
 	if len(currentVersion) < 4 {
@@ -222,7 +227,7 @@ func (u *UpgradeService) loadVersion(isLatest bool, currentVersion string) (stri
 	if version, ok := versionMap[currentVersion[0:4]]; ok {
 		return version, nil
 	}
-	return "", errors.New("load version failed in latest.current")
+	return "", buserr.New(constant.ErrOSSConn)
 }
 
 func (u *UpgradeService) loadReleaseNotes(path string) (string, error) {
@@ -231,9 +236,27 @@ func (u *UpgradeService) loadReleaseNotes(path string) (string, error) {
 		return "", err
 	}
 	defer releaseNotes.Body.Close()
-	release, err := ioutil.ReadAll(releaseNotes.Body)
+	release, err := io.ReadAll(releaseNotes.Body)
 	if err != nil {
 		return "", err
 	}
 	return string(release), nil
+}
+
+func loadArch() (string, error) {
+	switch runtime.GOARCH {
+	case "amd64", "ppc64le", "s390x", "arm64":
+		return runtime.GOARCH, nil
+	case "arm":
+		std, err := cmd.Exec("uname -m")
+		if err != nil {
+			return "", fmt.Errorf("std: %s, err: %s", std, err.Error())
+		}
+		if std == "armv7l\n" {
+			return "armv7", nil
+		}
+		return "", fmt.Errorf("unsupport such arch: arm-%s", std)
+	default:
+		return "", fmt.Errorf("unsupport such arch: %s", runtime.GOARCH)
+	}
 }

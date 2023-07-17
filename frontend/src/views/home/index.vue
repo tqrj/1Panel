@@ -8,8 +8,24 @@
                 },
             ]"
         />
+        <el-alert v-if="!isSafety" :closable="false" style="margin-top: 20px" type="warning">
+            <template #default>
+                <span>
+                    <span>{{ $t('home.entranceHelper') }}</span>
+                    <el-link
+                        style="font-size: 12px; margin-left: 5px"
+                        icon="Position"
+                        @click="goRouter('/settings/safe')"
+                        type="primary"
+                    >
+                        {{ $t('firewall.quickJump') }}
+                    </el-link>
+                </span>
+            </template>
+        </el-alert>
+
         <el-row :gutter="20" style="margin-top: 20px">
-            <el-col :span="16">
+            <el-col :xs="24" :sm="24" :md="16" :lg="16" :xl="16">
                 <CardWithHeader :header="$t('home.overview')" height="146px">
                     <template #body>
                         <div class="h-overview">
@@ -51,7 +67,7 @@
                         <Status ref="statuRef" style="margin-top: -7px" />
                     </template>
                 </CardWithHeader>
-                <CardWithHeader :header="$t('menu.monitor')" style="margin-top: 20px">
+                <CardWithHeader :header="$t('menu.monitor')" style="margin-top: 20px; margin-bottom: 20px">
                     <template #header-r>
                         <el-radio-group
                             style="float: right; margin-left: 5px"
@@ -102,14 +118,15 @@
                                 <el-tag>{{ $t('monitor.read') }}: {{ currentChartInfo.ioReadBytes }} MB</el-tag>
                                 <el-tag>{{ $t('monitor.write') }}: {{ currentChartInfo.ioWriteBytes }} MB</el-tag>
                                 <el-tag>
-                                    {{ $t('home.rwPerSecond') }}: {{ currentChartInfo.ioCount }} {{ $t('home.time') }}
+                                    {{ $t('home.rwPerSecond') }}: {{ currentChartInfo.ioCount }}
+                                    {{ $t('commons.units.time') }}/s
                                 </el-tag>
-                                <el-tag>{{ $t('home.ioDelay') }}: {{ currentInfo.ioTime }} ms</el-tag>
+                                <el-tag>{{ $t('home.ioDelay') }}: {{ currentChartInfo.ioTime }} ms</el-tag>
                             </div>
 
-                            <div v-if="chartOption === 'io'" style="margin-top: 40px">
+                            <div v-if="chartOption === 'io'" style="margin-top: 40px" class="mobile-monitor-chart">
                                 <v-charts
-                                    height="300px"
+                                    height="360px"
                                     id="ioChart"
                                     type="line"
                                     :option="chartsOption['ioChart']"
@@ -117,9 +134,9 @@
                                     :dataZoom="true"
                                 />
                             </div>
-                            <div v-if="chartOption === 'network'" style="margin-top: 40px">
+                            <div v-if="chartOption === 'network'" style="margin-top: 40px" class="mobile-monitor-chart">
                                 <v-charts
-                                    height="300px"
+                                    height="360px"
                                     id="networkChart"
                                     type="line"
                                     :option="chartsOption['networkChart']"
@@ -131,7 +148,7 @@
                     </template>
                 </CardWithHeader>
             </el-col>
-            <el-col :span="8">
+            <el-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
                 <CardWithHeader :header="$t('home.systemInfo')">
                     <template #body>
                         <el-descriptions :column="1" class="h-systemInfo">
@@ -207,17 +224,23 @@ import i18n from '@/lang';
 import { Dashboard } from '@/api/interface/dashboard';
 import { dateFormatForSecond, computeSize } from '@/utils/util';
 import { useRouter } from 'vue-router';
-import RouterButton from '@/components/router-button/index.vue';
 import { loadBaseInfo, loadCurrentInfo } from '@/api/modules/dashboard';
 import { getIOOptions, getNetworkOptions } from '@/api/modules/monitor';
+import { getSettingInfo, loadUpgradeInfo } from '@/api/modules/setting';
+import { GlobalStore } from '@/store';
 const router = useRouter();
+const globalStore = GlobalStore();
 
 const statuRef = ref();
 const appRef = ref();
 
+const isSafety = ref();
+
 const chartOption = ref('network');
 let timer: NodeJS.Timer | null = null;
 let isInit = ref<boolean>(true);
+let isStatusInit = ref<boolean>(true);
+let isActive = ref(true);
 
 const ioReadBytes = ref<Array<number>>([]);
 const ioWriteBytes = ref<Array<number>>([]);
@@ -234,13 +257,6 @@ const searchInfo = reactive({
 });
 
 const baseInfo = ref<Dashboard.BaseInfo>({
-    haloID: 0,
-    dateeaseID: 0,
-    jumpserverID: 0,
-    metersphereID: 0,
-    kubeoperatorID: 0,
-    kubepiID: 0,
-
     websiteNumber: 0,
     databaseNumber: 0,
     cronjobNumber: 0,
@@ -282,18 +298,11 @@ const currentInfo = ref<Dashboard.CurrentInfo>({
 
     ioReadBytes: 0,
     ioWriteBytes: 0,
-    ioTime: 0,
     ioCount: 0,
+    ioReadTime: 0,
+    ioWriteTime: 0,
 
-    total: 0,
-    free: 0,
-    used: 0,
-    usedPercent: 0,
-
-    inodesTotal: 0,
-    inodesUsed: 0,
-    inodesFree: 0,
-    inodesUsedPercent: 0,
+    diskData: [],
 
     netBytesSent: 0,
     netBytesRecv: 0,
@@ -304,6 +313,7 @@ const currentChartInfo = reactive({
     ioReadBytes: 0,
     ioWriteBytes: 0,
     ioCount: 0,
+    ioTime: 0,
 
     netBytesSent: 0,
     netBytesRecv: 0,
@@ -345,13 +355,15 @@ const onLoadBaseInfo = async (isInit: boolean, range: string) => {
     const res = await loadBaseInfo(searchInfo.ioOption, searchInfo.netOption);
     baseInfo.value = res.data;
     currentInfo.value = baseInfo.value.currentInfo;
-    onLoadCurrentInfo();
-    statuRef.value.acceptParams(currentInfo.value, baseInfo.value);
-    appRef.value.acceptParams(baseInfo.value);
+    await onLoadCurrentInfo();
+    isStatusInit.value = false;
+    statuRef.value.acceptParams(currentInfo.value, baseInfo.value, isStatusInit.value);
+    appRef.value.acceptParams();
     if (isInit) {
-        // window.addEventListener('resize', changeChartSize);
         timer = setInterval(async () => {
-            onLoadCurrentInfo();
+            if (isActive.value) {
+                await onLoadCurrentInfo();
+            }
         }, 3000);
     }
 };
@@ -360,36 +372,46 @@ const onLoadCurrentInfo = async () => {
     const res = await loadCurrentInfo(searchInfo.ioOption, searchInfo.netOption);
     currentInfo.value.timeSinceUptime = res.data.timeSinceUptime;
 
-    currentChartInfo.netBytesSent = Number(
-        ((res.data.netBytesSent - currentInfo.value.netBytesSent) / 1024 / 3).toFixed(2),
-    );
+    currentChartInfo.netBytesSent =
+        res.data.netBytesSent - currentInfo.value.netBytesSent > 0
+            ? Number(((res.data.netBytesSent - currentInfo.value.netBytesSent) / 1024 / 3).toFixed(2))
+            : 0;
     netBytesSents.value.push(currentChartInfo.netBytesSent);
     if (netBytesSents.value.length > 20) {
         netBytesSents.value.splice(0, 1);
     }
-    currentChartInfo.netBytesRecv = Number(
-        ((res.data.netBytesRecv - currentInfo.value.netBytesRecv) / 1024 / 3).toFixed(2),
-    );
+
+    currentChartInfo.netBytesRecv =
+        res.data.netBytesRecv - currentInfo.value.netBytesRecv > 0
+            ? Number(((res.data.netBytesRecv - currentInfo.value.netBytesRecv) / 1024 / 3).toFixed(2))
+            : 0;
     netBytesRecvs.value.push(currentChartInfo.netBytesRecv);
     if (netBytesRecvs.value.length > 20) {
         netBytesRecvs.value.splice(0, 1);
     }
 
-    currentChartInfo.ioReadBytes = Number(
-        ((res.data.ioReadBytes - currentInfo.value.ioReadBytes) / 1024 / 1024 / 3).toFixed(2),
-    );
+    currentChartInfo.ioReadBytes =
+        res.data.ioReadBytes - currentInfo.value.ioReadBytes > 0
+            ? Number(((res.data.ioReadBytes - currentInfo.value.ioReadBytes) / 1024 / 1024 / 3).toFixed(2))
+            : 0;
     ioReadBytes.value.push(currentChartInfo.ioReadBytes);
     if (ioReadBytes.value.length > 20) {
         ioReadBytes.value.splice(0, 1);
     }
-    currentChartInfo.ioWriteBytes = Number(
-        ((res.data.ioWriteBytes - currentInfo.value.ioWriteBytes) / 1024 / 1024 / 3).toFixed(2),
-    );
+
+    currentChartInfo.ioWriteBytes =
+        res.data.ioWriteBytes - currentInfo.value.ioWriteBytes > 0
+            ? Number(((res.data.ioWriteBytes - currentInfo.value.ioWriteBytes) / 1024 / 1024 / 3).toFixed(2))
+            : 0;
     ioWriteBytes.value.push(currentChartInfo.ioWriteBytes);
     if (ioWriteBytes.value.length > 20) {
         ioWriteBytes.value.splice(0, 1);
     }
-    currentChartInfo.ioCount = Number(((res.data.ioCount - currentInfo.value.ioCount) / 3).toFixed(2));
+    currentChartInfo.ioCount = Math.round(Number((res.data.ioCount - currentInfo.value.ioCount) / 3));
+    let ioReadTime = res.data.ioReadTime - currentInfo.value.ioReadTime;
+    let ioWriteTime = res.data.ioWriteTime - currentInfo.value.ioWriteTime;
+    let ioChoose = ioReadTime > ioWriteTime ? ioReadTime : ioWriteTime;
+    currentChartInfo.ioTime = Math.round(Number(ioChoose / 3));
 
     timeIODatas.value.push(dateFormatForSecond(res.data.shotTime));
     if (timeIODatas.value.length > 20) {
@@ -401,7 +423,7 @@ const onLoadCurrentInfo = async () => {
     }
     loadData();
     currentInfo.value = res.data;
-    statuRef.value.acceptParams(currentInfo.value, baseInfo.value);
+    statuRef.value.acceptParams(currentInfo.value, baseInfo.value, isStatusInit.value);
 };
 
 function loadUpTime(uptime: number) {
@@ -415,34 +437,34 @@ function loadUpTime(uptime: number) {
     if (days !== 0) {
         return (
             days +
-            i18n.global.t('home.Day') +
+            i18n.global.t('commons.units.day') +
             ' ' +
             hours +
-            i18n.global.t('home.Hour') +
+            i18n.global.t('commons.units.hour') +
             ' ' +
             minutes +
-            i18n.global.t('home.Minute') +
+            i18n.global.t('commons.units.minute') +
             ' ' +
             seconds +
-            i18n.global.t('home.Second')
+            i18n.global.t('commons.units.second')
         );
     }
     if (hours !== 0) {
         return (
             hours +
-            i18n.global.t('home.Hour') +
+            i18n.global.t('commons.units.hour') +
             ' ' +
             minutes +
-            i18n.global.t('home.Minute') +
+            i18n.global.t('commons.units.minute') +
             ' ' +
             seconds +
-            i18n.global.t('home.Second')
+            i18n.global.t('commons.units.second')
         );
     }
     if (minutes !== 0) {
-        return minutes + i18n.global.t('home.Minute') + ' ' + seconds + i18n.global.t('home.Second');
+        return minutes + i18n.global.t('commons.units.minute') + ' ' + seconds + i18n.global.t('commons.units.second');
     }
-    return seconds + i18n.global.t('home.Second');
+    return seconds + i18n.global.t('commons.units.second');
 }
 
 const loadData = async () => {
@@ -467,11 +489,11 @@ const loadData = async () => {
             yDatas: [
                 {
                     name: i18n.global.t('monitor.up'),
-                    data: netBytesRecvs.value,
+                    data: netBytesSents.value,
                 },
                 {
                     name: i18n.global.t('monitor.down'),
-                    data: netBytesSents.value,
+                    data: netBytesRecvs.value,
                 },
             ],
             formatStr: 'KB/s',
@@ -479,13 +501,40 @@ const loadData = async () => {
     }
 };
 
+const loadUpgradeStatus = async () => {
+    const res = await loadUpgradeInfo();
+    if (res.data) {
+        globalStore.hasNewVersion = true;
+    } else {
+        globalStore.hasNewVersion = false;
+    }
+};
+
+const loadSafeStatus = async () => {
+    const res = await getSettingInfo();
+    isSafety.value = res.data.securityEntrance;
+};
+
+const onFocus = () => {
+    isActive.value = true;
+};
+const onBlur = () => {
+    isActive.value = false;
+};
+
 onMounted(() => {
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('blur', onBlur);
+    loadSafeStatus();
+    loadUpgradeStatus();
     onLoadNetworkOptions();
     onLoadIOOptions();
     onLoadBaseInfo(true, 'all');
 });
 
 onBeforeUnmount(() => {
+    window.removeEventListener('focus', onFocus);
+    window.removeEventListener('blur', onBlur);
     clearInterval(Number(timer));
     timer = null;
 });

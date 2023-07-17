@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -91,7 +92,7 @@ func (u *ContainerService) PageCompose(req dto.SearchWithPage) (int64, interface
 		}
 	}
 	for _, item := range composeCreatedByLocal {
-		if err := composeRepo.DeleteRecord(commonRepo.WithByName(item.Name)); err != nil {
+		if err := composeRepo.DeleteRecord(commonRepo.WithByID(item.ID)); err != nil {
 			global.LOG.Error(err)
 		}
 	}
@@ -100,11 +101,11 @@ func (u *ContainerService) PageCompose(req dto.SearchWithPage) (int64, interface
 		records = append(records, value)
 	}
 	if len(req.Info) != 0 {
-		lenth, count := len(records), 0
-		for count < lenth {
+		length, count := len(records), 0
+		for count < length {
 			if !strings.Contains(records[count].Name, req.Info) {
 				records = append(records[:count], records[(count+1):]...)
-				lenth--
+				length--
 			} else {
 				count++
 			}
@@ -126,6 +127,10 @@ func (u *ContainerService) PageCompose(req dto.SearchWithPage) (int64, interface
 }
 
 func (u *ContainerService) TestCompose(req dto.ComposeCreate) (bool, error) {
+	composeItem, _ := composeRepo.GetRecord(commonRepo.WithByName(req.Name))
+	if composeItem.ID != 0 {
+		return false, constant.ErrRecordExist
+	}
 	if err := u.loadPath(&req); err != nil {
 		return false, err
 	}
@@ -154,9 +159,10 @@ func (u *ContainerService) CreateCompose(req dto.ComposeCreate) (string, error) 
 	go func() {
 		defer file.Close()
 		cmd := exec.Command("docker-compose", "-f", req.Path, "up", "-d")
-		stdout, err := cmd.CombinedOutput()
-		_, _ = file.Write(stdout)
-		if err != nil {
+		multiWriter := io.MultiWriter(os.Stdout, file)
+		cmd.Stdout = multiWriter
+		cmd.Stderr = multiWriter
+		if err := cmd.Run(); err != nil {
 			global.LOG.Errorf("docker-compose up %s failed, err: %v", req.Name, err)
 			_, _ = compose.Down(req.Path)
 			_, _ = file.WriteString("docker-compose up failed!")
@@ -180,7 +186,9 @@ func (u *ContainerService) ComposeOperation(req dto.ComposeOperation) error {
 	global.LOG.Infof("docker-compose %s %s successful", req.Operation, req.Name)
 	if req.Operation == "down" {
 		_ = composeRepo.DeleteRecord(commonRepo.WithByName(req.Name))
-		_ = os.RemoveAll(strings.ReplaceAll(req.Path, "/docker-compose.yml", ""))
+		if req.WithFile {
+			_ = os.RemoveAll(path.Dir(req.Path))
+		}
 	}
 
 	return nil
@@ -211,15 +219,7 @@ func (u *ContainerService) ComposeUpdate(req dto.ComposeUpdate) error {
 }
 
 func (u *ContainerService) loadPath(req *dto.ComposeCreate) error {
-	if req.From == "template" {
-		template, err := composeRepo.Get(commonRepo.WithByID(req.Template))
-		if err != nil {
-			return err
-		}
-		req.From = "edit"
-		req.File = template.Content
-	}
-	if req.From == "edit" {
+	if req.From == "template" || req.From == "edit" {
 		dir := fmt.Sprintf("%s/docker/compose/%s", constant.DataDir, req.Name)
 		if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
 			if err = os.MkdirAll(dir, os.ModePerm); err != nil {

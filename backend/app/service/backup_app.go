@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -32,6 +33,7 @@ func (u *BackupService) AppBackup(req dto.CommonBackup) error {
 		return err
 	}
 	timeNow := time.Now().Format("20060102150405")
+
 	backupDir := fmt.Sprintf("%s/app/%s/%s", localDir, req.Name, req.DetailName)
 
 	fileName := fmt.Sprintf("%s_%s.tar.gz", req.DetailName, timeNow)
@@ -97,7 +99,7 @@ func handleAppBackup(install *model.AppInstall, backupDir, fileName string) erro
 		return err
 	}
 
-	appPath := fmt.Sprintf("%s/%s/%s", constant.AppInstallDir, install.App.Key, install.Name)
+	appPath := install.GetPath()
 	if err := handleTar(appPath, tmpDir, "app.tar.gz", ""); err != nil {
 		return err
 	}
@@ -146,7 +148,7 @@ func handleAppRecover(install *model.AppInstall, recoverFile string, isRollback 
 	if err := json.Unmarshal(appjson, &oldInstall); err != nil {
 		return fmt.Errorf("unmarshal app.json failed, err: %v", err)
 	}
-	if oldInstall.App.Key != install.App.Key || oldInstall.Name != install.Name || oldInstall.Version != install.Version || oldInstall.ID != install.ID {
+	if oldInstall.App.Key != install.App.Key || oldInstall.Name != install.Name {
 		return errors.New("the current backup file does not match the application")
 	}
 
@@ -170,6 +172,7 @@ func handleAppRecover(install *model.AppInstall, recoverFile string, isRollback 
 		}()
 	}
 
+	newEnvFile := ""
 	resource, _ := appInstallResourceRepo.GetFirst(appInstallResourceRepo.WithAppInstallId(install.ID))
 	if resource.ID != 0 && install.App.Key != "mysql" {
 		mysqlInfo, err := appInstallRepo.LoadBaseInfo(resource.Key, "")
@@ -180,7 +183,22 @@ func handleAppRecover(install *model.AppInstall, recoverFile string, isRollback 
 		if err != nil {
 			return err
 		}
-		if err := handleMysqlRecover(mysqlInfo, tmpPath, db.Name, fmt.Sprintf("%s.sql.gz", install.Name), true); err != nil {
+
+		newDB, envMap, err := reCreateDB(db.ID, oldInstall.Env)
+		if err != nil {
+			return err
+		}
+		oldHost := fmt.Sprintf("\"PANEL_DB_HOST\":\"%v\"", envMap["PANEL_DB_HOST"].(string))
+		newHost := fmt.Sprintf("\"PANEL_DB_HOST\":\"%v\"", mysqlInfo.ServiceName)
+		oldInstall.Env = strings.ReplaceAll(oldInstall.Env, oldHost, newHost)
+		envMap["PANEL_DB_HOST"] = mysqlInfo.ServiceName
+		newEnvFile, err = coverEnvJsonToStr(oldInstall.Env)
+		if err != nil {
+			return err
+		}
+		_ = appInstallResourceRepo.BatchUpdateBy(map[string]interface{}{"resource_id": newDB.ID}, commonRepo.WithByID(resource.ID))
+
+		if err := handleMysqlRecover(mysqlInfo, tmpPath, newDB.Name, fmt.Sprintf("%s.sql.gz", install.Name), true); err != nil {
 			global.LOG.Errorf("handle recover from sql.gz failed, err: %v", err)
 			return err
 		}
@@ -191,11 +209,50 @@ func handleAppRecover(install *model.AppInstall, recoverFile string, isRollback 
 		return err
 	}
 
-	oldInstall.Status = constant.Running
-	if err := appInstallRepo.Save(install); err != nil {
+	if len(newEnvFile) != 0 {
+		envPath := fmt.Sprintf("%s/%s/%s/.env", constant.AppInstallDir, install.App.Key, install.Name)
+		file, err := os.OpenFile(envPath, os.O_WRONLY|os.O_TRUNC, 0640)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, _ = file.WriteString(newEnvFile)
+	}
+
+	oldInstall.ID = install.ID
+	oldInstall.Status = constant.StatusRunning
+	oldInstall.AppId = install.AppId
+	oldInstall.AppDetailId = install.AppDetailId
+	if err := appInstallRepo.Save(context.Background(), &oldInstall); err != nil {
 		global.LOG.Errorf("save db app install failed, err: %v", err)
 		return err
 	}
 	isOk = true
 	return nil
+}
+
+func reCreateDB(dbID uint, oldEnv string) (*model.DatabaseMysql, map[string]interface{}, error) {
+	mysqlService := NewIMysqlService()
+	ctx := context.Background()
+	_ = mysqlService.Delete(ctx, dto.MysqlDBDelete{ID: dbID, DeleteBackup: true, ForceDelete: true})
+
+	envMap := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(oldEnv), &envMap); err != nil {
+		return nil, envMap, err
+	}
+	oldName, _ := envMap["PANEL_DB_NAME"].(string)
+	oldUser, _ := envMap["PANEL_DB_USER"].(string)
+	oldPassword, _ := envMap["PANEL_DB_USER_PASSWORD"].(string)
+	createDB, err := mysqlService.Create(context.Background(), dto.MysqlDBCreate{
+		Name:       oldName,
+		Format:     "utf8mb4",
+		Username:   oldUser,
+		Password:   oldPassword,
+		Permission: "%",
+	})
+	if err != nil {
+		return nil, envMap, err
+	}
+
+	return createDB, envMap, nil
 }

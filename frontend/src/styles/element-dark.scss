@@ -18,6 +18,7 @@ html.dark {
     // * panel-admin
     --panel-text-color: rgb(174, 166, 153);
     --panel-border: 1px solid #1d2023;
+    --panel-border-color: #394c5e;
     --panel-main-bg-color: rgba(12, 12, 12, 1);
     --panel-button-active: var(--el-color-primary);
 
@@ -26,6 +27,7 @@ html.dark {
     --panel-popup-color: #060708;
     --panel-alert-bg: #2f3030;
     --panel-path-bg: #2f3030;
+    --panel-button-disabled: #5a5a5a;
 
     .el-tag.el-tag--info {
         --el-tag-bg-color: rgb(49, 51, 51);
@@ -55,7 +57,8 @@ html.dark {
         --el-table-border-color: rgb(64, 67, 67);
     }
     .el-message-box {
-        --el-messagebox-title-color: #999999;
+        --el-messagebox-title-color: var(--el-menu-text-color);
+        border: 1px solid var(--panel-border-color);
     }
 
     .el-alert--info {
@@ -73,11 +76,16 @@ html.dark {
 
     .el-popover {
         --el-popover-title-text-color: #999999;
+        border: 1px solid var(--panel-border-color);
     }
 
     // * wangEditor
     --w-e-textarea-bg-color: #1b1b1b;
     --w-e-textarea-color: #eeeeee;
+
+    .md-editor-dark {
+        --md-bk-color: #111417;
+    }
 
     // * 以下为自定义暗黑模式内容
     // login
@@ -106,14 +114,14 @@ html.dark {
     ::-webkit-scrollbar-thumb {
         background-color: var(--el-border-color-darker);
     }
-    // menu
-    .menu-popper {
+    // sidebar
+    .sidebar-container-popper {
         border: 1px solid #66686c;
         .el-menu--popup-container {
             border: none;
         }
     }
-    .menu {
+    .sidebar-container {
         border-right: 1px solid var(--el-border-color-light);
     }
     .el-menu {
@@ -146,19 +154,24 @@ html.dark {
             }
         }
     }
-    .collapse {
+    .menu-collapse {
         color: var(--el-menu-text-color);
         border: var(--panel-border);
     }
 
     // layout
-    .el-container {
-        .el-main {
+    .app-wrapper {
+        .main-container {
             background-color: var(--panel-main-bg-color) !important;
         }
-        .footer {
+        .app-footer {
             background-color: var(--panel-main-bg-color) !important;
             border-top: var(--panel-border);
+        }
+        .mobile-header {
+            background-color: var(--panel-main-bg-color) !important;
+            border-bottom: var(--panel-border);
+            color: #ffffff;
         }
     }
     .system-label {
@@ -184,6 +197,9 @@ html.dark {
     .el-drawer .el-drawer__header span {
         color: var(--el-menu-text-color);
     }
+    .el-drawer {
+        border-left: 0.5px solid var(--panel-border-color);
+    }
 
     .el-input__wrapper {
         background-color: var(--el-disabled-bg-color);
@@ -202,8 +218,12 @@ html.dark {
         background: #1d2023;
         border-color: #303438;
     }
+    .el-button.is-link.is-disabled {
+        color: var(--panel-button-disabled) !important;
+    }
     .el-button.is-disabled {
         border-color: #303438;
+        color: var(--panel-button-disabled);
     }
     .el-popper.is-dark {
         color: rgb(171 173 173);
@@ -231,7 +251,11 @@ html.dark {
         .el-dialog__header {
             border-bottom: var(--panel-border);
             color: #999999;
+            .el-dialog__title {
+                color: var(--el-menu-text-color);
+            }
         }
+        border: 1px solid var(--panel-border-color);
     }
     .el-tabs__item {
         color: #999999;
@@ -276,5 +300,16 @@ html.dark {
         &:hover {
             background: #212426;
         }
+    }
+
+    .el-alert--warning.is-light {
+        background-color: rgb(56, 59, 59);
+        color: var(--el-color-warning);
+    }
+    .el-dropdown-menu__item.is-disabled {
+        color: var(--panel-button-disabled);
+    }
+    .el-date-editor .el-range-separator {
+        color: var(--panel-button-disabled);
     }
 }

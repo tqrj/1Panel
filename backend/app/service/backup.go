@@ -2,17 +2,23 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/1Panel-dev/1Panel/backend/app/dto"
 	"github.com/1Panel-dev/1Panel/backend/app/model"
+	"github.com/1Panel-dev/1Panel/backend/buserr"
 	"github.com/1Panel-dev/1Panel/backend/constant"
 	"github.com/1Panel-dev/1Panel/backend/global"
 	"github.com/1Panel-dev/1Panel/backend/utils/cloud_storage"
-	"github.com/1Panel-dev/1Panel/backend/utils/cmd"
+	fileUtils "github.com/1Panel-dev/1Panel/backend/utils/files"
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 )
@@ -22,11 +28,12 @@ type BackupService struct{}
 type IBackupService interface {
 	List() ([]dto.BackupInfo, error)
 	SearchRecordsWithPage(search dto.RecordSearch) (int64, []dto.BackupRecords, error)
+	LoadOneDriveInfo() (string, error)
 	DownloadRecord(info dto.DownloadRecord) (string, error)
 	Create(backupDto dto.BackupOperate) error
 	GetBuckets(backupDto dto.ForBuckets) ([]interface{}, error)
 	Update(ireq dto.BackupOperate) error
-	BatchDelete(ids []uint) error
+	Delete(id uint) error
 	BatchDeleteRecord(ids []uint) error
 	NewClient(backup *model.BackupAccount) (cloud_storage.CloudStorageClient, error)
 
@@ -53,36 +60,14 @@ func NewIBackupService() IBackupService {
 func (u *BackupService) List() ([]dto.BackupInfo, error) {
 	ops, err := backupRepo.List(commonRepo.WithOrderBy("created_at desc"))
 	var dtobas []dto.BackupInfo
-	ossExist, s3Exist, sftpExist, minioExist := false, false, false, false
-	for _, group := range ops {
-		switch group.Type {
-		case "OSS":
-			ossExist = true
-		case "S3":
-			s3Exist = true
-		case "SFTP":
-			sftpExist = true
-		case "MINIO":
-			minioExist = true
-		}
-		var item dto.BackupInfo
-		if err := copier.Copy(&item, &group); err != nil {
-			return nil, errors.WithMessage(constant.ErrStructTransform, err.Error())
-		}
-		dtobas = append(dtobas, item)
-	}
-	if !ossExist {
-		dtobas = append(dtobas, dto.BackupInfo{Type: "OSS"})
-	}
-	if !s3Exist {
-		dtobas = append(dtobas, dto.BackupInfo{Type: "S3"})
-	}
-	if !sftpExist {
-		dtobas = append(dtobas, dto.BackupInfo{Type: "SFTP"})
-	}
-	if !minioExist {
-		dtobas = append(dtobas, dto.BackupInfo{Type: "MINIO"})
-	}
+	dtobas = append(dtobas, u.loadByType("LOCAL", ops))
+	dtobas = append(dtobas, u.loadByType("OSS", ops))
+	dtobas = append(dtobas, u.loadByType("S3", ops))
+	dtobas = append(dtobas, u.loadByType("SFTP", ops))
+	dtobas = append(dtobas, u.loadByType("MINIO", ops))
+	dtobas = append(dtobas, u.loadByType("COS", ops))
+	dtobas = append(dtobas, u.loadByType("KODO", ops))
+	dtobas = append(dtobas, u.loadByType("OneDrive", ops))
 	return dtobas, err
 }
 
@@ -105,6 +90,18 @@ func (u *BackupService) SearchRecordsWithPage(search dto.RecordSearch) (int64, [
 	return total, dtobas, err
 }
 
+func (u *BackupService) LoadOneDriveInfo() (string, error) {
+	OneDriveID, err := settingRepo.Get(settingRepo.WithByKey("OneDriveID"))
+	if err != nil {
+		return "", err
+	}
+	idItem, err := base64.StdEncoding.DecodeString(OneDriveID.Value)
+	if err != nil {
+		return "", err
+	}
+	return string(idItem), err
+}
+
 func (u *BackupService) DownloadRecord(info dto.DownloadRecord) (string, error) {
 	if info.Source == "LOCAL" {
 		return info.FileDir + "/" + info.FileName, nil
@@ -117,29 +114,35 @@ func (u *BackupService) DownloadRecord(info dto.DownloadRecord) (string, error) 
 	if err := json.Unmarshal([]byte(backup.Vars), &varMap); err != nil {
 		return "", err
 	}
-	varMap["type"] = backup.Type
 	varMap["bucket"] = backup.Bucket
 	switch backup.Type {
 	case constant.Sftp:
 		varMap["username"] = backup.AccessKey
 		varMap["password"] = backup.Credential
-	case constant.OSS, constant.S3, constant.MinIo:
+	case constant.OSS, constant.S3, constant.MinIo, constant.Cos, constant.Kodo:
 		varMap["accessKey"] = backup.AccessKey
 		varMap["secretKey"] = backup.Credential
+	case constant.OneDrive:
+		varMap["accessToken"] = backup.Credential
 	}
-	backClient, err := cloud_storage.NewCloudStorageClient(varMap)
+	backClient, err := cloud_storage.NewCloudStorageClient(backup.Type, varMap)
 	if err != nil {
 		return "", fmt.Errorf("new cloud storage client failed, err: %v", err)
 	}
-	tempPath := fmt.Sprintf("%sdownload%s", constant.DataDir, info.FileDir)
-	if _, err := os.Stat(tempPath); err != nil && os.IsNotExist(err) {
-		if err = os.MkdirAll(tempPath, os.ModePerm); err != nil {
-			global.LOG.Errorf("mkdir %s failed, err: %v", tempPath, err)
+	targetPath := fmt.Sprintf("%s/download/%s/%s", constant.DataDir, info.FileDir, info.FileName)
+	if _, err := os.Stat(path.Dir(targetPath)); err != nil && os.IsNotExist(err) {
+		if err = os.MkdirAll(path.Dir(targetPath), os.ModePerm); err != nil {
+			global.LOG.Errorf("mkdir %s failed, err: %v", path.Dir(targetPath), err)
 		}
 	}
-	targetPath := tempPath + info.FileName
-	if _, err = os.Stat(targetPath); err != nil && os.IsNotExist(err) {
-		isOK, err := backClient.Download(info.FileName, targetPath)
+	srcPath := fmt.Sprintf("%s/%s", info.FileDir, info.FileName)
+	if len(backup.BackupPath) != 0 {
+		itemPath := strings.TrimPrefix(backup.BackupPath, "/")
+		itemPath = strings.TrimSuffix(itemPath, "/") + "/"
+		srcPath = itemPath + srcPath
+	}
+	if exist, _ := backClient.Exist(srcPath); exist {
+		isOK, err := backClient.Download(srcPath, targetPath)
 		if !isOK {
 			return "", fmt.Errorf("cloud storage download failed, err: %v", err)
 		}
@@ -155,6 +158,12 @@ func (u *BackupService) Create(backupDto dto.BackupOperate) error {
 	if err := copier.Copy(&backup, &backupDto); err != nil {
 		return errors.WithMessage(constant.ErrStructTransform, err.Error())
 	}
+
+	if backupDto.Type == constant.OneDrive {
+		if err := u.loadAccessToken(&backup); err != nil {
+			return err
+		}
+	}
 	if err := backupRepo.Create(&backup); err != nil {
 		return err
 	}
@@ -166,24 +175,27 @@ func (u *BackupService) GetBuckets(backupDto dto.ForBuckets) ([]interface{}, err
 	if err := json.Unmarshal([]byte(backupDto.Vars), &varMap); err != nil {
 		return nil, err
 	}
-	varMap["type"] = backupDto.Type
 	switch backupDto.Type {
 	case constant.Sftp:
 		varMap["username"] = backupDto.AccessKey
 		varMap["password"] = backupDto.Credential
-	case constant.OSS, constant.S3, constant.MinIo:
+	case constant.OSS, constant.S3, constant.MinIo, constant.Cos, constant.Kodo:
 		varMap["accessKey"] = backupDto.AccessKey
 		varMap["secretKey"] = backupDto.Credential
 	}
-	client, err := cloud_storage.NewCloudStorageClient(varMap)
+	client, err := cloud_storage.NewCloudStorageClient(backupDto.Type, varMap)
 	if err != nil {
 		return nil, err
 	}
 	return client.ListBuckets()
 }
 
-func (u *BackupService) BatchDelete(ids []uint) error {
-	return backupRepo.Delete(commonRepo.WithIdsIn(ids))
+func (u *BackupService) Delete(id uint) error {
+	cronjobs, _ := cronjobRepo.List(cronjobRepo.WithByBackupID(id))
+	if len(cronjobs) != 0 {
+		return buserr.New(constant.ErrBackupInUsed)
+	}
+	return backupRepo.Delete(commonRepo.WithByID(id))
 }
 
 func (u *BackupService) BatchDeleteRecord(ids []uint) error {
@@ -197,7 +209,7 @@ func (u *BackupService) BatchDeleteRecord(ids []uint) error {
 				global.LOG.Errorf("remove file %s failed, err: %v", record.FileDir+record.FileName, err)
 			}
 		} else {
-			backupAccount, err := backupRepo.Get(commonRepo.WithByName(record.Source))
+			backupAccount, err := backupRepo.Get(commonRepo.WithByType(record.Source))
 			if err != nil {
 				return err
 			}
@@ -231,7 +243,17 @@ func (u *BackupService) Update(req dto.BackupOperate) error {
 	upMap := make(map[string]interface{})
 	upMap["bucket"] = req.Bucket
 	upMap["credential"] = req.Credential
+	upMap["backup_path"] = req.BackupPath
 	upMap["vars"] = req.Vars
+	backup.Vars = req.Vars
+
+	if req.Type == constant.OneDrive {
+		if err := u.loadAccessToken(&backup); err != nil {
+			return err
+		}
+		upMap["credential"] = backup.Credential
+		upMap["vars"] = backup.Vars
+	}
 	if err := backupRepo.Update(req.ID, upMap); err != nil {
 		return err
 	}
@@ -241,7 +263,7 @@ func (u *BackupService) Update(req dto.BackupOperate) error {
 				if strings.HasSuffix(dirStr, "/") {
 					dirStr = dirStr[:strings.LastIndex(dirStr, "/")]
 				}
-				if err := updateBackupDir(dirStr, oldDir); err != nil {
+				if err := copyDir(oldDir, dirStr); err != nil {
 					_ = backupRepo.Update(req.ID, (map[string]interface{}{"vars": oldVars}))
 					return err
 				}
@@ -268,7 +290,6 @@ func (u *BackupService) NewClient(backup *model.BackupAccount) (cloud_storage.Cl
 	if err := json.Unmarshal([]byte(backup.Vars), &varMap); err != nil {
 		return nil, err
 	}
-	varMap["type"] = backup.Type
 	if backup.Type == "LOCAL" {
 		return nil, errors.New("not support")
 	}
@@ -277,17 +298,79 @@ func (u *BackupService) NewClient(backup *model.BackupAccount) (cloud_storage.Cl
 	case constant.Sftp:
 		varMap["username"] = backup.AccessKey
 		varMap["password"] = backup.Credential
-	case constant.OSS, constant.S3, constant.MinIo:
+	case constant.OSS, constant.S3, constant.MinIo, constant.Cos, constant.Kodo:
 		varMap["accessKey"] = backup.AccessKey
 		varMap["secretKey"] = backup.Credential
+	case constant.OneDrive:
+		varMap["accessToken"] = backup.Credential
 	}
 
-	backClient, err := cloud_storage.NewCloudStorageClient(varMap)
+	backClient, err := cloud_storage.NewCloudStorageClient(backup.Type, varMap)
 	if err != nil {
 		return nil, err
 	}
 
 	return backClient, nil
+}
+
+func (u *BackupService) loadByType(accountType string, accounts []model.BackupAccount) dto.BackupInfo {
+	for _, account := range accounts {
+		if account.Type == accountType {
+			var item dto.BackupInfo
+			if err := copier.Copy(&item, &account); err != nil {
+				global.LOG.Errorf("copy backup account to dto backup info failed, err: %v", err)
+			}
+			return item
+		}
+	}
+	return dto.BackupInfo{Type: accountType}
+}
+
+func (u *BackupService) loadAccessToken(backup *model.BackupAccount) error {
+	varMap := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(backup.Vars), &varMap); err != nil {
+		return fmt.Errorf("unmarshal backup vars failed, err: %v", err)
+	}
+
+	data := url.Values{}
+	data.Set("client_id", global.CONF.System.OneDriveID)
+	data.Set("client_secret", global.CONF.System.OneDriveSc)
+	data.Set("grant_type", "authorization_code")
+	data.Set("code", varMap["code"].(string))
+	data.Set("redirect_uri", constant.OneDriveRedirectURI)
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", "https://login.microsoftonline.com/common/oauth2/v2.0/token", strings.NewReader(data.Encode()))
+	if err != nil {
+		return fmt.Errorf("new http post client for access token failed, err: %v", err)
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("request for access token failed, err: %v", err)
+	}
+	delete(varMap, "code")
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read data from response body failed, err: %v", err)
+	}
+	defer resp.Body.Close()
+
+	token := map[string]interface{}{}
+	if err := json.Unmarshal(respBody, &token); err != nil {
+		return fmt.Errorf("unmarshal data from response body failed, err: %v", err)
+	}
+	accessToken, ok := token["refresh_token"].(string)
+	if !ok {
+		return errors.New("no such access token in response")
+	}
+
+	itemVars, err := json.Marshal(varMap)
+	if err != nil {
+		return fmt.Errorf("json marshal var map failed, err: %v", err)
+	}
+	backup.Credential = accessToken
+	backup.Vars = string(itemVars)
+	return nil
 }
 
 func loadLocalDir() (string, error) {
@@ -314,18 +397,33 @@ func loadLocalDir() (string, error) {
 	return "", fmt.Errorf("error type dir: %T", varMap["dir"])
 }
 
-func updateBackupDir(dir, oldDir string) error {
-	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
-		if err = os.MkdirAll(dir, os.ModePerm); err != nil {
-			return err
+func copyDir(src, dst string) error {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if err = os.MkdirAll(dst, srcInfo.Mode()); err != nil {
+		return err
+	}
+	files, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	fileOP := fileUtils.NewFileOp()
+	for _, file := range files {
+		srcPath := fmt.Sprintf("%s/%s", src, file.Name())
+		dstPath := fmt.Sprintf("%s/%s", dst, file.Name())
+		if file.IsDir() {
+			if err = copyDir(srcPath, dstPath); err != nil {
+				global.LOG.Errorf("copy dir %s to %s failed, err: %v", srcPath, dstPath, err)
+			}
+		} else {
+			if err := fileOP.CopyFile(srcPath, dst); err != nil {
+				global.LOG.Errorf("copy file %s to %s failed, err: %v", srcPath, dstPath, err)
+			}
 		}
 	}
-	if strings.HasSuffix(oldDir, "/") {
-		oldDir = oldDir[:strings.LastIndex(oldDir, "/")]
-	}
-	stdout, err := cmd.Execf("cp -r %s/* %s", oldDir, dir)
-	if err != nil {
-		return errors.New(string(stdout))
-	}
+
 	return nil
 }

@@ -18,7 +18,7 @@
                         <span v-if="row.isDefault">({{ $t('website.default') }})</span>
                     </div>
 
-                    <el-form ref="groupForm" v-if="row.edit" :model="row">
+                    <el-form @submit.prevent ref="groupForm" v-if="row.edit" :model="row">
                         <el-form-item prop="name" v-if="row.edit" :rules="Rules.name">
                             <div style="margin-top: 20px; width: 100%"><el-input v-model="row.name" /></div>
                         </el-form-item>
@@ -58,7 +58,6 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
 import i18n from '@/lang';
-import ComplexTable from '@/components/complex-table/index.vue';
 import { CreateGroup, DeleteGroup, GetGroupList, UpdateGroup } from '@/api/modules/group';
 import Header from '@/components/drawer-header/index.vue';
 import { MsgSuccess } from '@/utils/message';

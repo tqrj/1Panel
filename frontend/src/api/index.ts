@@ -18,15 +18,16 @@ class RequestHttp {
     service: AxiosInstance;
     public constructor(config: AxiosRequestConfig) {
         this.service = axios.create(config);
+        let language = globalStore.language === 'tw' ? 'zh-Hant' : globalStore.language;
         this.service.interceptors.request.use(
             (config: AxiosRequestConfig) => {
                 if (config.method != 'get') {
                     config.headers = {
                         'X-CSRF-TOKEN': globalStore.csrfToken,
+                        'Accept-Language': language,
                         ...config.headers,
                     };
                 }
-
                 return {
                     ...config,
                 };
@@ -43,20 +44,32 @@ class RequestHttp {
                     globalStore.setCsrfToken(response.headers['x-csrf-token']);
                 }
                 if (data.code == ResultEnum.OVERDUE || data.code == ResultEnum.FORBIDDEN) {
-                    router.replace({
-                        path: '/login',
+                    globalStore.setLogStatus(false);
+                    router.push({
+                        name: 'entrance',
+                        params: { code: globalStore.entrance },
                     });
                     return Promise.reject(data);
-                }
-                if (data.code == ResultEnum.UNSAFETY) {
-                    router.replace({
-                        path: '/login',
-                    });
-                    return data;
                 }
                 if (data.code == ResultEnum.EXPIRED) {
                     router.push({ name: 'Expired' });
                     return data;
+                }
+                if (data.code == ResultEnum.ERRIP) {
+                    globalStore.setLogStatus(false);
+                    router.push({
+                        name: 'entrance',
+                        params: { code: 'err-ip' },
+                    });
+                    return Promise.reject(data);
+                }
+                if (data.code == ResultEnum.ERRDOMAIN) {
+                    globalStore.setLogStatus(false);
+                    router.push({
+                        name: 'entrance',
+                        params: { code: 'err-domain' },
+                    });
+                    return Promise.reject(data);
                 }
                 if (data.code == ResultEnum.ERRGLOBALLOADDING) {
                     globalStore.setGlobalLoading(true);

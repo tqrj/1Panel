@@ -13,7 +13,7 @@
                     <el-form-item :label="$t('commons.table.name')" prop="name">
                         <el-input v-model.trim="account.name"></el-input>
                     </el-form-item>
-                    <el-form-item :label="$t('website.type')" prop="type">
+                    <el-form-item :label="$t('commons.table.type')" prop="type">
                         <el-select v-model="account.type" :disabled="accountData.mode === 'edit'">
                             <el-option
                                 v-for="(type, index) in types"
@@ -25,26 +25,26 @@
                     </el-form-item>
                     <div v-if="account.type === 'AliYun'">
                         <el-form-item label="Access Key" prop="authorization.accessKey">
-                            <el-input v-model="account.authorization['accessKey']"></el-input>
+                            <el-input v-model.trim="account.authorization['accessKey']"></el-input>
                         </el-form-item>
                         <el-form-item label="Secret Key" prop="authorization.secretKey">
-                            <el-input v-model="account.authorization['secretKey']"></el-input>
+                            <el-input v-model.trim="account.authorization['secretKey']"></el-input>
                         </el-form-item>
                     </div>
                     <div v-if="account.type === 'DnsPod'">
                         <el-form-item label="ID" prop="authorization.id">
-                            <el-input v-model="account.authorization['id']"></el-input>
+                            <el-input v-model.trim="account.authorization['id']"></el-input>
                         </el-form-item>
                         <el-form-item label="Token" prop="authorization.token">
-                            <el-input v-model="account.authorization['token']"></el-input>
+                            <el-input v-model.trim="account.authorization['token']"></el-input>
                         </el-form-item>
                     </div>
                     <div v-if="account.type === 'CloudFlare'">
                         <el-form-item label="EMAIL" prop="authorization.email">
-                            <el-input v-model="account.authorization['email']"></el-input>
+                            <el-input v-model.trim="account.authorization['email']"></el-input>
                         </el-form-item>
                         <el-form-item label="API Key" prop="authorization.apiKey">
-                            <el-input v-model="account.authorization['apiKey']"></el-input>
+                            <el-input v-model.trim="account.authorization['apiKey']"></el-input>
                         </el-form-item>
                     </div>
                 </el-form>

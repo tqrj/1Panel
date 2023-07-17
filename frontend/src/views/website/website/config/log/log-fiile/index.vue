@@ -16,6 +16,9 @@
                 >
                     {{ $t('file.download') }}
                 </el-button>
+                <el-button style="margin-left: 20px" @click="cleanLog" icon="Delete" :disabled="data.content === ''">
+                    {{ $t('commons.button.clean') }}
+                </el-button>
             </div>
         </div>
         <br />
@@ -42,7 +45,8 @@ import { javascript } from '@codemirror/lang-javascript';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef } from 'vue';
 import { OpWebsiteLog } from '@/api/modules/website';
-import { dateFormatForName } from '@/utils/util';
+import { dateFormatForName, downloadWithContent } from '@/utils/util';
+import { useDeleteData } from '@/hooks/use-delete-data';
 
 const extensions = [javascript(), oneDark];
 const props = defineProps({
@@ -61,12 +65,12 @@ const logType = computed(() => {
 const id = computed(() => {
     return props.id;
 });
-let loading = ref(false);
-let data = ref({
+const loading = ref(false);
+const data = ref({
     enable: false,
     content: '',
 });
-let tailLog = ref(false);
+const tailLog = ref(false);
 let timer: NodeJS.Timer | null = null;
 
 const view = shallowRef();
@@ -124,14 +128,22 @@ const updateEnable = () => {
         });
 };
 
+const cleanLog = async () => {
+    const req = {
+        id: id.value,
+        operate: 'delete',
+        logType: logType.value,
+    };
+    try {
+        await useDeleteData(OpWebsiteLog, req, 'commons.msg.delete');
+        getContent();
+    } catch (error) {
+    } finally {
+    }
+};
+
 const onDownload = async () => {
-    const downloadUrl = window.URL.createObjectURL(new Blob([data.value.content]));
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = downloadUrl;
-    a.download = logType.value + '-' + dateFormatForName(new Date()) + '.log';
-    const event = new MouseEvent('click');
-    a.dispatchEvent(event);
+    downloadWithContent(data.value.content, logType.value + '-' + dateFormatForName(new Date()) + '.log');
 };
 
 const onCloseLog = async () => {

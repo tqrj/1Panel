@@ -22,6 +22,7 @@ type FileCreate struct {
 	IsLink    bool   `json:"isLink"`
 	IsSymlink bool   `json:"isSymlink"`
 	LinkPath  string `json:"linkPath"`
+	Sub       bool   `json:"sub"`
 }
 
 type FileDelete struct {
@@ -81,10 +82,22 @@ type FileDownload struct {
 	Compress bool     `json:"compress" validate:"required"`
 }
 
+type FileChunkDownload struct {
+	Path string `json:"path" validate:"required"`
+	Name string `json:"name" validate:"required"`
+}
+
 type DirSizeReq struct {
 	Path string `json:"path" validate:"required"`
 }
 
 type FileProcessReq struct {
 	Key string `json:"key"`
+}
+
+type FileRoleUpdate struct {
+	Path  string `json:"path" validate:"required"`
+	User  string `json:"user" validate:"required"`
+	Group string `json:"group" validate:"required"`
+	Sub   bool   `json:"sub" validate:"required"`
 }

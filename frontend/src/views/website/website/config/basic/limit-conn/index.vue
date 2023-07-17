@@ -1,12 +1,13 @@
 <template>
     <el-row :gutter="20" v-loading="loading">
-        <el-col :span="8" :offset="1">
-            <el-form-item prop="enable" :label="$t('website.enableOrNot')">
-                <el-switch v-model="enable" @change="changeEnable"></el-switch>
-            </el-form-item>
-            <el-form ref="limitForm" label-position="left" :model="form" :rules="rules" label-width="100px">
+        <el-col :xs="24" :sm="18" :md="8" :lg="8" :xl="8">
+            <el-form ref="limitForm" label-position="right" :model="form" :rules="rules" label-width="100px">
+                <el-form-item prop="enable" :label="$t('website.enableOrNot')">
+                    <el-switch v-model="enable" @change="changeEnable"></el-switch>
+                </el-form-item>
                 <el-form-item :label="$t('website.limit')">
                     <el-select v-model="ruleKey" @change="changeRule(ruleKey)">
+                        <el-option :label="$t('website.current')" :value="'current'"></el-option>
                         <el-option
                             v-for="(limit, index) in limitRules"
                             :key="index"
@@ -94,7 +95,7 @@ const search = (scopeReq: Website.NginxScopeReq) => {
     loading.value = true;
     GetNginxConfig(scopeReq)
         .then((res) => {
-            ruleKey.value = limitRules[0].key;
+            ruleKey.value = 'current';
             if (res.data) {
                 enable.value = res.data.enable;
                 if (res.data.enable == false) {
@@ -102,14 +103,14 @@ const search = (scopeReq: Website.NginxScopeReq) => {
                 }
                 for (const param of res.data.params) {
                     if (param.name === 'limit_conn') {
-                        if (param.params[0] === 'perserver') {
+                        if (param.params[0] === 'perserver' && param.params[1]) {
                             form.perserver = Number(param.params[1].match(/\d+/g));
                         }
-                        if (param.params[0] === 'perip') {
+                        if (param.params[0] === 'perip' && param.params[1]) {
                             form.perip = Number(param.params[1].match(/\d+/g));
                         }
                     }
-                    if (param.name === 'limit_rate') {
+                    if (param.name === 'limit_rate' && param.params[0]) {
                         form.rate = Number(param.params[0].match(/\d+/g));
                     }
                 }

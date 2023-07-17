@@ -1,7 +1,11 @@
 <template>
     <el-drawer v-model="drawerVisiable" :destroy-on-close="true" :close-on-click-modal="false" size="50%">
         <template #header>
-            <DrawerHeader :header="title + $t('container.composeTemplate')" :back="handleClose" />
+            <DrawerHeader
+                :header="title + $t('container.composeTemplate')"
+                :resource="dialogData.rowData?.name"
+                :back="handleClose"
+            />
         </template>
         <el-form
             v-loading="loading"
@@ -13,7 +17,7 @@
         >
             <el-row type="flex" justify="center">
                 <el-col :span="22">
-                    <el-form-item :label="$t('container.name')" prop="name">
+                    <el-form-item :label="$t('commons.table.name')" prop="name">
                         <el-input
                             :disabled="dialogData.title === 'edit'"
                             v-model.trim="dialogData.rowData!.name"

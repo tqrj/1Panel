@@ -6,12 +6,14 @@ type CronjobCreate struct {
 	Name     string `json:"name" validate:"required"`
 	Type     string `json:"type" validate:"required"`
 	SpecType string `json:"specType" validate:"required"`
-	Week     int    `json:"week" validate:"number,max=7,min=1"`
+	Week     int    `json:"week" validate:"number,max=6,min=0"`
 	Day      int    `json:"day" validate:"number"`
 	Hour     int    `json:"hour" validate:"number"`
 	Minute   int    `json:"minute" validate:"number"`
+	Second   int    `json:"second" validate:"number"`
 
 	Script         string `json:"script"`
+	ContainerName  string `json:"containerName"`
 	Website        string `json:"website"`
 	ExclusionRules string `json:"exclusionRules"`
 	DBName         string `json:"dbName"`
@@ -26,12 +28,14 @@ type CronjobUpdate struct {
 	ID       uint   `json:"id" validate:"required"`
 	Name     string `json:"name" validate:"required"`
 	SpecType string `json:"specType" validate:"required"`
-	Week     int    `json:"week" validate:"number,max=7,min=1"`
+	Week     int    `json:"week" validate:"number,max=6,min=0"`
 	Day      int    `json:"day" validate:"number"`
 	Hour     int    `json:"hour" validate:"number"`
 	Minute   int    `json:"minute" validate:"number"`
+	Second   int    `json:"second" validate:"number"`
 
 	Script         string `json:"script"`
+	ContainerName  string `json:"containerName"`
 	Website        string `json:"website"`
 	ExclusionRules string `json:"exclusionRules"`
 	DBName         string `json:"dbName"`
@@ -52,6 +56,16 @@ type CronjobDownload struct {
 	BackupAccountID uint `json:"backupAccountID" validate:"required"`
 }
 
+type CronjobClean struct {
+	CleanData bool `json:"cleanData"`
+	CronjobID uint `json:"cronjobID" validate:"required"`
+}
+
+type CronjobBatchDelete struct {
+	CleanData bool   `json:"cleanData"`
+	IDs       []uint `json:"ids"`
+}
+
 type CronjobInfo struct {
 	ID       uint   `json:"id"`
 	Name     string `json:"name"`
@@ -61,8 +75,10 @@ type CronjobInfo struct {
 	Day      int    `json:"day"`
 	Hour     int    `json:"hour"`
 	Minute   int    `json:"minute"`
+	Second   int    `json:"second"`
 
 	Script         string `json:"script"`
+	ContainerName  string `json:"containerName"`
 	Website        string `json:"website"`
 	ExclusionRules string `json:"exclusionRules"`
 	DBName         string `json:"dbName"`
@@ -73,7 +89,7 @@ type CronjobInfo struct {
 	TargetDirID    int    `json:"targetDirID"`
 	RetainCopies   int    `json:"retainCopies"`
 
-	LastRecrodTime string `json:"lastRecrodTime"`
+	LastRecordTime string `json:"lastRecordTime"`
 	Status         string `json:"status"`
 }
 

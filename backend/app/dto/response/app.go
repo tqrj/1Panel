@@ -1,8 +1,10 @@
 package response
 
 import (
-	"github.com/1Panel-dev/1Panel/backend/app/model"
+	"github.com/1Panel-dev/1Panel/backend/app/dto/request"
 	"time"
+
+	"github.com/1Panel-dev/1Panel/backend/app/model"
 )
 
 type AppRes struct {
@@ -11,15 +13,15 @@ type AppRes struct {
 }
 
 type AppUpdateRes struct {
-	Version      string `json:"version"`
-	CanUpdate    bool   `json:"canUpdate"`
-	DownloadPath string `json:"downloadPath"`
+	CanUpdate            bool `json:"canUpdate"`
+	AppStoreLastModified int  `json:"appStoreLastModified"`
 }
 
 type AppDTO struct {
 	model.App
-	Versions []string    `json:"versions"`
-	Tags     []model.Tag `json:"tags"`
+	Installed bool        `json:"installed"`
+	Versions  []string    `json:"versions"`
+	Tags      []model.Tag `json:"tags"`
 }
 
 type TagDTO struct {
@@ -43,6 +45,14 @@ type AppDetailDTO struct {
 	model.AppDetail
 	Enable bool        `json:"enable"`
 	Params interface{} `json:"params"`
+	Image  string      `json:"image"`
+}
+
+type IgnoredApp struct {
+	Icon     string `json:"icon"`
+	Name     string `json:"name"`
+	Version  string `json:"version"`
+	DetailID uint   `json:"detailID"`
 }
 
 type AppInstalledDTO struct {
@@ -52,6 +62,13 @@ type AppInstalledDTO struct {
 	AppName   string `json:"appName"`
 	Icon      string `json:"icon"`
 	CanUpdate bool   `json:"canUpdate"`
+	Path      string `json:"path"`
+}
+
+type DatabaseConn struct {
+	Password    string `json:"password"`
+	ServiceName string `json:"serviceName"`
+	Port        int64  `json:"port"`
 }
 
 type AppService struct {
@@ -70,4 +87,11 @@ type AppParam struct {
 	Type      string      `json:"type"`
 	Values    interface{} `json:"values"`
 	ShowValue string      `json:"showValue"`
+	Required  bool        `json:"required"`
+	Multiple  bool        `json:"multiple"`
+}
+
+type AppConfig struct {
+	Params []AppParam `json:"params"`
+	request.AppContainerConfig
 }

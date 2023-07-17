@@ -5,12 +5,14 @@ import '@/styles/index.scss';
 import '@/styles/common.scss';
 import '@/assets/iconfont/iconfont.css';
 import '@/assets/iconfont/iconfont.js';
+import '@/styles/style.css';
 
 import directives from '@/directives/index';
 import router from '@/routers/index';
 import I18n from '@/lang/index';
 import pinia from '@/store/index';
 import SvgIcon from './components/svg-icon/svg-icon.vue';
+import Components from '@/components';
 
 import ElementPlus from 'element-plus';
 import Fit2CloudPlus from 'fit2cloud-ui-plus';
@@ -29,4 +31,5 @@ app.use(router);
 app.use(I18n);
 app.use(pinia);
 app.use(directives);
+app.use(Components);
 app.mount('#app');

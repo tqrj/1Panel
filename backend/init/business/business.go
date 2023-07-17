@@ -16,13 +16,13 @@ func syncApp() {
 		global.LOG.Errorf("sync app error: %s", err.Error())
 		return
 	}
-	if setting.AppStoreVersion != "" {
+	if setting.AppStoreLastModified != "0" {
 		global.LOG.Info("no need to sync")
 		return
 	}
 	global.LOG.Info("sync app start...")
-	if err := service.NewIAppService().SyncAppList(); err != nil {
-		global.LOG.Errorf("sync app error: %s", err.Error())
+	if err := service.NewIAppService().SyncAppListFromRemote(); err != nil {
+		global.LOG.Errorf("sync app error")
 		return
 	}
 	global.LOG.Info("sync app successful")

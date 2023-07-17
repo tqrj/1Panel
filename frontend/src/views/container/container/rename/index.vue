@@ -1,9 +1,9 @@
 <template>
     <el-drawer v-model="newNameVisiable" :destroy-on-close="true" :close-on-click-modal="false" size="30%">
         <template #header>
-            <DrawerHeader :header="$t('container.rename')" :back="handleClose" />
+            <DrawerHeader :header="$t('container.rename')" :resource="renameForm.name" :back="handleClose" />
         </template>
-        <el-form ref="newNameRef" v-loading="loading" :model="renameForm" label-position="top">
+        <el-form @submit.prevent ref="newNameRef" v-loading="loading" :model="renameForm" label-position="top">
             <el-row type="flex" justify="center">
                 <el-col :span="22">
                     <el-form-item :label="$t('container.newName')" :rules="Rules.volumeName" prop="newName">
@@ -26,7 +26,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ContainerOperator } from '@/api/modules/container';
+import { containerOperator } from '@/api/modules/container';
 import { Rules } from '@/global/form-rules';
 import i18n from '@/lang';
 import { MsgSuccess } from '@/utils/message';
@@ -54,7 +54,7 @@ const onSubmitName = async (formEl: FormInstance | undefined) => {
     formEl.validate(async (valid) => {
         if (!valid) return;
         loading.value = true;
-        await ContainerOperator(renameForm)
+        await containerOperator(renameForm)
             .then(() => {
                 loading.value = false;
                 emit('search');

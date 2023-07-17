@@ -1,15 +1,40 @@
 <template>
     <div>
-        <span class="version">{{ version }}</span>
-        <el-button v-if="version !== 'Waiting'" style="margin-top: -2px" type="primary" link @click="onLoadUpgradeInfo">
-            {{ $t('setting.upgradeCheck') }}
+        <span v-if="props.footer">
+            <el-button type="primary" link @click="toForum">
+                <span>{{ $t('setting.forum') }}</span>
+            </el-button>
+            <el-divider direction="vertical" />
+            <el-button type="primary" link @click="toDoc">
+                <span>{{ $t('setting.doc2') }}</span>
+            </el-button>
+            <el-divider direction="vertical" />
+        </span>
+        <span class="version">{{ $t('setting.currentVersion') + version }}</span>
+        <el-badge
+            is-dot
+            class="item"
+            v-if="version !== 'Waiting' && globalStore.hasNewVersion"
+            style="margin-top: -6px"
+        >
+            <el-button type="primary" link @click="onLoadUpgradeInfo">
+                <span style="font-size: 14px">（{{ $t('setting.hasNewVersion') }}）</span>
+            </el-button>
+        </el-badge>
+        <el-button
+            v-if="version !== 'Waiting' && !globalStore.hasNewVersion"
+            style="margin-top: -2px"
+            type="primary"
+            link
+            @click="onLoadUpgradeInfo"
+        >
+            （{{ $t('setting.upgradeCheck') }}）
         </el-button>
-        <el-tag v-else round style="margin-left: 10px">{{ $t('setting.upgrading') }}</el-tag>
+        <el-tag v-if="version === 'Waiting'" round style="margin-left: 10px">{{ $t('setting.upgrading') }}</el-tag>
     </div>
-
     <el-drawer :close-on-click-modal="false" :key="refresh" v-model="drawerVisiable" size="50%" append-to-body>
         <template #header>
-            <DrawerHeader :header="$t('setting.upgrade')" :back="handleClose" />
+            <DrawerHeader :header="$t('commons.button.upgrade')" :back="handleClose" />
         </template>
         <div class="panel-MdEditor">
             <el-alert :closable="false">
@@ -28,7 +53,11 @@
                     {{ upgradeInfo.latestVersion }} {{ $t('setting.latestVersion') }}
                 </el-radio>
             </el-radio-group>
-            <MdEditor v-model="upgradeInfo.releaseNote" previewOnly />
+            <MdEditor
+                v-model="upgradeInfo.releaseNote"
+                previewOnly
+                :theme="globalStore.$state.themeConfig.theme === 'dark' ? 'dark' : 'light'"
+            />
         </div>
         <template #footer>
             <span class="dialog-footer">
@@ -39,6 +68,7 @@
     </el-drawer>
 </template>
 <script setup lang="ts">
+import DrawerHeader from '@/components/drawer-header/index.vue';
 import { getSettingInfo, loadReleaseNotes, loadUpgradeInfo, upgrade } from '@/api/modules/setting';
 import MdEditor from 'md-editor-v3';
 import i18n from '@/lang';
@@ -50,12 +80,17 @@ import { ElMessageBox } from 'element-plus';
 const globalStore = GlobalStore();
 
 const version = ref();
-let loading = ref(false);
+const loading = ref(false);
 const drawerVisiable = ref(false);
 const upgradeInfo = ref();
 const refresh = ref();
-
 const upgradeVersion = ref();
+const props = defineProps({
+    footer: {
+        type: Boolean,
+        default: false,
+    },
+});
 
 const search = async () => {
     const res = await getSettingInfo();
@@ -64,6 +99,14 @@ const search = async () => {
 
 const handleClose = () => {
     drawerVisiable.value = false;
+};
+
+const toDoc = () => {
+    window.open('https://1panel.cn/docs/', '_blank');
+};
+
+const toForum = () => {
+    window.open('https://bbs.fit2cloud.com/c/1p/7', '_blank');
 };
 
 const onLoadUpgradeInfo = async () => {
@@ -90,7 +133,7 @@ const changeOption = async () => {
 };
 
 const onUpgrade = async () => {
-    ElMessageBox.confirm(i18n.global.t('setting.upgradeHelper', i18n.global.t('setting.upgrade')), {
+    ElMessageBox.confirm(i18n.global.t('setting.upgradeHelper', i18n.global.t('commons.button.upgrade')), {
         confirmButtonText: i18n.global.t('commons.button.confirm'),
         cancelButtonText: i18n.global.t('commons.button.cancel'),
         type: 'info',

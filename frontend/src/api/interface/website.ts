@@ -16,6 +16,11 @@ export namespace Website {
         autoRenew: boolean;
         appinstall?: NewAppInstall;
         webSiteSSL: SSL;
+        runtimeID: number;
+        rewrite: string;
+        user: string;
+        group: string;
+        IPV6: boolean;
     }
 
     export interface WebsiteDTO extends Website {
@@ -23,6 +28,7 @@ export namespace Website {
         accessLogPath: string;
         sitePath: string;
         appName: string;
+        runtimeName: string;
     }
 
     export interface NewAppInstall {
@@ -33,6 +39,8 @@ export namespace Website {
 
     export interface WebSiteSearch extends ReqPage {
         name: string;
+        orderBy: string;
+        order: string;
         websiteGroupId: number;
     }
 
@@ -53,6 +61,7 @@ export namespace Website {
         webSiteGroupId: number;
         otherDomains: string;
         proxy: string;
+        proxyType: string;
     }
 
     export interface WebSiteUpdateReq {
@@ -61,6 +70,7 @@ export namespace Website {
         remark: string;
         webSiteGroupId: number;
         expireDate?: string;
+        IPV6: boolean;
     }
 
     export interface WebSiteOp {
@@ -150,6 +160,7 @@ export namespace Website {
         provider: string;
         websites?: Website.Website[];
         autoRenew: boolean;
+        acmeAccountId?: number;
     }
 
     export interface SSLCreate {
@@ -197,6 +208,7 @@ export namespace Website {
 
     export interface SSLReq {
         name?: string;
+        acmeAccountID?: string;
     }
 
     export interface HTTPSReq {
@@ -259,5 +271,122 @@ export namespace Website {
 
     export interface DefaultServerUpdate {
         id: number;
+    }
+
+    export interface PHPConfig {
+        params: any;
+        disableFunctions: string[];
+        uploadMaxSize: string;
+    }
+
+    export interface PHPConfigUpdate {
+        id: number;
+        params?: any;
+        disableFunctions?: string[];
+        scope: string;
+        uploadMaxSize?: string;
+    }
+
+    export interface PHPUpdate {
+        id: number;
+        content: string;
+        type: string;
+    }
+
+    export interface RewriteReq {
+        websiteID: number;
+        name: string;
+    }
+
+    export interface RewriteRes {
+        content: string;
+    }
+
+    export interface RewriteUpdate {
+        websiteID: number;
+        name: string;
+        content: string;
+    }
+
+    export interface DirUpdate {
+        id: number;
+        siteDir: string;
+    }
+
+    export interface DirPermissionUpdate {
+        id: number;
+        user: string;
+        group: string;
+    }
+
+    export interface ProxyReq {
+        id: number;
+    }
+
+    export interface ProxyConfig {
+        id: number;
+        operate: string;
+        enable: boolean;
+        cache: boolean;
+        cacheTime: number;
+        cacheUnit: string;
+        name: string;
+        modifier: string;
+        match: string;
+        proxyPass: string;
+        proxyHost: string;
+        filePath?: string;
+        replaces?: ProxReplace;
+        content?: string;
+    }
+
+    export interface ProxReplace {
+        [key: string]: string;
+    }
+
+    export interface ProxyFileUpdate {
+        websiteID: number;
+        name: string;
+        content: string;
+    }
+
+    export interface AuthReq {
+        websiteID: number;
+    }
+
+    export interface NginxAuth {
+        username: string;
+        remark: string;
+    }
+
+    export interface AuthConfig {
+        enable: boolean;
+        items: NginxAuth[];
+    }
+
+    export interface NginxAuthConfig {
+        websiteID: number;
+        operate: string;
+        username: string;
+        password: string;
+        remark: string;
+    }
+
+    export interface LeechConfig {
+        enable: boolean;
+        cache: boolean;
+        cacheTime: number;
+        cacheUint: string;
+        extends: string;
+        return: string;
+        serverNames: string[];
+        noneRef: boolean;
+        logEnable: boolean;
+        blocked: boolean;
+        websiteID?: number;
+    }
+
+    export interface LeechReq {
+        websiteID: number;
     }
 }

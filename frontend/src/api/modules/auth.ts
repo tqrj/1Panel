@@ -17,20 +17,8 @@ export const logOutApi = () => {
     return http.post<any>(`/auth/logout`);
 };
 
-export const entrance = (code: string) => {
-    return http.get<any>(`/${code}`);
-};
-
-export const loginStatus = () => {
-    return http.get<any>('/info');
-};
-
-export const checkIsFirst = () => {
-    return http.get<boolean>('/auth/status');
-};
-
-export const initUser = (params: Login.InitUser) => {
-    return http.post(`/auth/init`, params);
+export const checkIsSafety = (code: string) => {
+    return http.get<string>(`/auth/issafety?code=${code}`);
 };
 
 export const checkIsDemo = () => {

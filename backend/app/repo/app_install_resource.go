@@ -11,6 +11,21 @@ import (
 type AppInstallResourceRpo struct {
 }
 
+type IAppInstallResourceRpo interface {
+	WithAppInstallId(appInstallId uint) DBOption
+	WithLinkId(linkId uint) DBOption
+	WithResourceId(resourceId uint) DBOption
+	GetBy(opts ...DBOption) ([]model.AppInstallResource, error)
+	GetFirst(opts ...DBOption) (model.AppInstallResource, error)
+	Create(ctx context.Context, resource *model.AppInstallResource) error
+	DeleteBy(ctx context.Context, opts ...DBOption) error
+	BatchUpdateBy(maps map[string]interface{}, opts ...DBOption) error
+}
+
+func NewIAppInstallResourceRpo() IAppInstallResourceRpo {
+	return &AppInstallResourceRpo{}
+}
+
 func (a AppInstallResourceRpo) WithAppInstallId(appInstallId uint) DBOption {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where("app_install_id = ?", appInstallId)
@@ -56,4 +71,12 @@ func (a AppInstallResourceRpo) Create(ctx context.Context, resource *model.AppIn
 
 func (a AppInstallResourceRpo) DeleteBy(ctx context.Context, opts ...DBOption) error {
 	return getTx(ctx, opts...).Delete(&model.AppInstallResource{}).Error
+}
+
+func (a *AppInstallResourceRpo) BatchUpdateBy(maps map[string]interface{}, opts ...DBOption) error {
+	db := getDb(opts...).Model(&model.AppInstallResource{})
+	if len(opts) == 0 {
+		db = db.Where("1=1")
+	}
+	return db.Updates(&maps).Error
 }

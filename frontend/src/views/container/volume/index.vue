@@ -13,7 +13,10 @@
                         <el-button type="primary" @click="onCreate()">
                             {{ $t('container.createVolume') }}
                         </el-button>
-                        <el-button type="primary" plain :disabled="selects.length === 0" @click="batchDelete(null)">
+                        <el-button type="primary" plain @click="onClean()">
+                            {{ $t('container.volumePrune') }}
+                        </el-button>
+                        <el-button :disabled="selects.length === 0" @click="batchDelete(null)">
                             {{ $t('commons.button.delete') }}
                         </el-button>
                     </el-col>
@@ -26,7 +29,7 @@
                                 @clear="search()"
                                 suffix-icon="Search"
                                 @keyup.enter="search()"
-                                @blur="search()"
+                                @change="search()"
                                 :placeholder="$t('commons.button.search')"
                             ></el-input>
                         </div>
@@ -44,6 +47,15 @@
                     <el-table-column :label="$t('commons.table.name')" min-width="80" prop="name" fix>
                         <template #default="{ row }">
                             <Tooltip @click="onInspect(row.name)" :text="row.name" />
+                        </template>
+                    </el-table-column>
+                    <el-table-column :label="$t('container.volumeDir')" min-width="50">
+                        <template #default="{ row }">
+                            <el-button type="primary" link @click="toFolder(row.mountpoint)">
+                                <el-icon>
+                                    <FolderOpened />
+                                </el-icon>
+                            </el-button>
                         </template>
                     </el-table-column>
                     <el-table-column
@@ -75,19 +87,19 @@
 </template>
 
 <script lang="ts" setup>
-import LayoutContent from '@/layout/layout-content.vue';
 import Tooltip from '@/components/tooltip/index.vue';
-import ComplexTable from '@/components/complex-table/index.vue';
 import TableSetting from '@/components/table-setting/index.vue';
 import CreateDialog from '@/views/container/volume/create/index.vue';
-import CodemirrorDialog from '@/components/codemirror-dialog/codemirror.vue';
+import CodemirrorDialog from '@/components/codemirror-dialog/index.vue';
 import { reactive, onMounted, ref } from 'vue';
-import { dateFormat } from '@/utils/util';
-import { deleteVolume, searchVolume, inspect, loadDockerStatus } from '@/api/modules/container';
+import { computeSize, dateFormat } from '@/utils/util';
+import { deleteVolume, searchVolume, inspect, loadDockerStatus, containerPrune } from '@/api/modules/container';
 import { Container } from '@/api/interface/container';
 import i18n from '@/lang';
 import { useDeleteData } from '@/hooks/use-delete-data';
 import router from '@/routers';
+import { MsgSuccess } from '@/utils/message';
+import { ElMessageBox } from 'element-plus';
 
 const loading = ref();
 const detailInfo = ref();
@@ -121,7 +133,9 @@ const loadStatus = async () => {
 const goSetting = async () => {
     router.push({ name: 'ContainerSetting' });
 };
-
+const toFolder = (folder: string) => {
+    router.push({ path: '/hosts/files', query: { path: folder } });
+};
 const dialogCreateRef = ref<DialogExpose>();
 
 interface DialogExpose {
@@ -157,6 +171,34 @@ const onInspect = async (id: string) => {
         detailInfo: detailInfo.value,
     };
     codemirror.value!.acceptParams(param);
+};
+
+const onClean = () => {
+    ElMessageBox.confirm(i18n.global.t('container.volumePruneHelper'), i18n.global.t('container.volumePrune'), {
+        confirmButtonText: i18n.global.t('commons.button.confirm'),
+        cancelButtonText: i18n.global.t('commons.button.cancel'),
+        type: 'info',
+    }).then(async () => {
+        loading.value = true;
+        let params = {
+            pruneType: 'volume',
+            withTagAll: false,
+        };
+        await containerPrune(params)
+            .then((res) => {
+                loading.value = false;
+                MsgSuccess(
+                    i18n.global.t('container.cleanSuccessWithSpace', [
+                        res.data.deletedNumber,
+                        computeSize(res.data.spaceReclaimed),
+                    ]),
+                );
+                search();
+            })
+            .catch(() => {
+                loading.value = false;
+            });
+    });
 };
 
 const batchDelete = async (row: Container.VolumeInfo | null) => {

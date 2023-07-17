@@ -2,6 +2,7 @@ export namespace Login {
     export interface ReqLoginForm {
         name: string;
         password: string;
+        ignoreCaptcha: boolean;
         captcha: string;
         captchaID: string;
         authMethod: string;
@@ -16,10 +17,6 @@ export namespace Login {
         name: string;
         token: string;
         mfaStatus: string;
-    }
-    export interface InitUser {
-        name: string;
-        password: string;
     }
     export interface ResCaptcha {
         imagePath: string;

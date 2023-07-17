@@ -1,7 +1,11 @@
 <template>
-    <el-drawer v-model="drawerVisiable" :destroy-on-close="true" :close-on-click-modal="false" size="50%">
+    <el-drawer v-model="drawerVisiable" :destroy-on-close="true" :close-on-click-modal="false" size="30%">
         <template #header>
-            <DrawerHeader :header="title + $t('container.repo')" :back="handleClose" />
+            <DrawerHeader
+                :header="title + $t('container.repo')"
+                :resource="dialogData.rowData?.name"
+                :back="handleClose"
+            />
         </template>
         <el-form
             ref="formRef"
@@ -13,7 +17,7 @@
         >
             <el-row type="flex" justify="center">
                 <el-col :span="22">
-                    <el-form-item :label="$t('container.name')" prop="name">
+                    <el-form-item :label="$t('commons.table.name')" prop="name">
                         <el-input
                             clearable
                             :disabled="dialogData.title === 'edit'"
@@ -47,7 +51,7 @@
                             docker pull {{ dialogData.rowData!.downloadUrl }}/nginx
                         </span>
                     </el-form-item>
-                    <el-form-item :label="$t('container.protocol')" prop="protocol">
+                    <el-form-item :label="$t('commons.table.protocol')" prop="protocol">
                         <el-radio-group v-model="dialogData.rowData!.protocol">
                             <el-radio label="http">http</el-radio>
                             <el-radio label="https">https</el-radio>
@@ -107,10 +111,10 @@ const handleClose = () => {
 };
 const rules = reactive({
     name: [Rules.requiredInput, Rules.name],
-    downloadUrl: [Rules.requiredInput],
+    downloadUrl: [Rules.illegal],
     protocol: [Rules.requiredSelect],
-    username: [Rules.requiredInput],
-    password: [Rules.requiredInput],
+    username: [Rules.illegal],
+    password: [Rules.illegal],
     auth: [Rules.requiredSelect],
 });
 

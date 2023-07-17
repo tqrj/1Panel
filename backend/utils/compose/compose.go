@@ -2,9 +2,12 @@ package compose
 
 import (
 	"github.com/1Panel-dev/1Panel/backend/utils/cmd"
-	"github.com/compose-spec/compose-go/loader"
-	"github.com/compose-spec/compose-go/types"
 )
+
+func Pull(filePath string) (string, error) {
+	stdout, err := cmd.Execf("docker-compose -f %s pull", filePath)
+	return stdout, err
+}
 
 func Up(filePath string) (string, error) {
 	stdout, err := cmd.Execf("docker-compose -f %s up -d", filePath)
@@ -12,7 +15,7 @@ func Up(filePath string) (string, error) {
 }
 
 func Down(filePath string) (string, error) {
-	stdout, err := cmd.Execf("docker-compose -f %s down", filePath)
+	stdout, err := cmd.Execf("docker-compose -f %s down --remove-orphans", filePath)
 	return stdout, err
 }
 
@@ -34,25 +37,4 @@ func Restart(filePath string) (string, error) {
 func Operate(filePath, operation string) (string, error) {
 	stdout, err := cmd.Execf("docker-compose -f %s %s", filePath, operation)
 	return stdout, err
-}
-
-func GetComposeProject(yml []byte, env map[string]string) (*types.Project, error) {
-	var configFiles []types.ConfigFile
-	configFiles = append(configFiles, types.ConfigFile{
-		Filename: "docker-compose.yml",
-		Content:  yml},
-	)
-	details := types.ConfigDetails{
-		WorkingDir:  "",
-		ConfigFiles: configFiles,
-		Environment: env,
-	}
-
-	project, err := loader.Load(details, func(options *loader.Options) {
-
-	})
-	if err != nil {
-		return nil, err
-	}
-	return project, nil
 }

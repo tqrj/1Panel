@@ -5,6 +5,7 @@
                 <AppStatus
                     :app-key="'mysql'"
                     v-model:loading="loading"
+                    v-model:mask-show="maskShow"
                     @setting="onSetting"
                     @is-exist="checkExist"
                 ></AppStatus>
@@ -12,19 +13,19 @@
 
             <template #toolbar v-if="mysqlIsExist && !isOnSetting">
                 <el-row :class="{ mask: mysqlStatus != 'Running' }">
-                    <el-col :span="20">
+                    <el-col :xs="24" :sm="20" :md="20" :lg="20" :xl="20">
                         <el-button type="primary" @click="onOpenDialog()">
                             {{ $t('database.create') }}
                         </el-button>
                         <el-button @click="onChangeRootPassword" type="primary" plain>
-                            {{ $t('database.rootPassword') }}
+                            {{ $t('database.databaseConnInfo') }}
                         </el-button>
                         <el-button @click="onChangeAccess" type="primary" plain>
                             {{ $t('database.remoteAccess') }}
                         </el-button>
-                        <el-button @click="goDashboard" type="primary" plain>phpMyAdmin</el-button>
+                        <el-button @click="goDashboard" icon="Position" type="primary" plain>phpMyAdmin</el-button>
                     </el-col>
-                    <el-col :span="4">
+                    <el-col :xs="24" :sm="4" :md="4" :lg="4" :xl="4">
                         <div class="search-button">
                             <el-input
                                 v-model="searchName"
@@ -32,7 +33,7 @@
                                 @clear="search()"
                                 suffix-icon="Search"
                                 @keyup.enter="search()"
-                                @blur="search()"
+                                @change="search()"
                                 :placeholder="$t('commons.button.search')"
                             ></el-input>
                         </div>
@@ -42,11 +43,12 @@
             <template #main v-if="mysqlIsExist && !isOnSetting">
                 <ComplexTable
                     :pagination-config="paginationConfig"
+                    @sort-change="search"
                     @search="search"
                     :data="data"
                     :class="{ mask: mysqlStatus != 'Running' }"
                 >
-                    <el-table-column :label="$t('commons.table.name')" prop="name" />
+                    <el-table-column :label="$t('commons.table.name')" prop="name" sortable />
                     <el-table-column :label="$t('commons.login.username')" prop="username" />
                     <el-table-column :label="$t('commons.login.password')" prop="password">
                         <template #default="{ row }">
@@ -72,11 +74,7 @@
                                     </el-icon>
                                 </div>
                                 <div style="cursor: pointer; float: left">
-                                    <el-icon
-                                        style="margin-left: 5px; margin-top: 3px"
-                                        :size="16"
-                                        @click="onCopyPassword(row)"
-                                    >
+                                    <el-icon style="margin-left: 5px; margin-top: 3px" :size="16" @click="onCopy(row)">
                                         <DocumentCopy />
                                     </el-icon>
                                 </div>
@@ -108,8 +106,7 @@
         </LayoutContent>
 
         <el-card
-            width="30%"
-            v-if="mysqlStatus != 'Running' && !isOnSetting && mysqlIsExist && !loading"
+            v-if="mysqlStatus != 'Running' && !isOnSetting && mysqlIsExist && !loading && maskShow"
             class="mask-prompt"
         >
             <span>{{ $t('commons.service.serviceNotStarted', ['MySQL']) }}</span>
@@ -144,12 +141,12 @@
 
         <AppResources ref="checkRef"></AppResources>
         <DeleteDialog ref="deleteRef" @search="search" />
+
+        <PortJumpDialog ref="dialogPortJumpRef" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import LayoutContent from '@/layout/layout-content.vue';
-import ComplexTable from '@/components/complex-table/index.vue';
 import OperateDialog from '@/views/database/mysql/create/index.vue';
 import DeleteDialog from '@/views/database/mysql/delete/index.vue';
 import PasswordDialog from '@/views/database/mysql/password/index.vue';
@@ -160,6 +157,7 @@ import Setting from '@/views/database/mysql/setting/index.vue';
 import AppStatus from '@/components/app-status/index.vue';
 import Backups from '@/components/backup/index.vue';
 import UploadDialog from '@/components/upload/index.vue';
+import PortJumpDialog from '@/components/port-jump/index.vue';
 import { dateFormat } from '@/utils/util';
 import { reactive, ref } from 'vue';
 import { deleteCheckMysqlDB, loadRemoteAccess, searchMysqlDBs, updateMysqlDescription } from '@/api/modules/database';
@@ -168,9 +166,12 @@ import { Database } from '@/api/interface/database';
 import { App } from '@/api/interface/app';
 import { GetAppPort } from '@/api/modules/app';
 import router from '@/routers';
-import { MsgSuccess } from '@/utils/message';
+import { MsgError, MsgSuccess } from '@/utils/message';
+import useClipboard from 'vue-clipboard3';
+const { toClipboard } = useClipboard();
 
 const loading = ref(false);
+const maskShow = ref(true);
 
 const mysqlName = ref();
 const isOnSetting = ref<boolean>();
@@ -180,6 +181,8 @@ const deleteRef = ref();
 
 const phpadminPort = ref();
 const phpVisiable = ref(false);
+
+const dialogPortJumpRef = ref();
 
 const data = ref();
 const paginationConfig = reactive({
@@ -241,11 +244,13 @@ const onSetting = async () => {
     settingRef.value!.acceptParams(params);
 };
 
-const search = async () => {
+const search = async (column?: any) => {
     let params = {
         page: paginationConfig.currentPage,
         pageSize: paginationConfig.pageSize,
         info: searchName.value,
+        orderBy: column?.order ? column.prop : 'created_at',
+        order: column?.order ? column.order : 'null',
     };
     const res = await searchMysqlDBs(params);
     data.value = res.data.items || [];
@@ -264,10 +269,9 @@ const goDashboard = async () => {
         phpVisiable.value = true;
         return;
     }
-    let href = window.location.href;
-    let ipLocal = href.split('//')[1].split(':')[0];
-    window.open(`http://${ipLocal}:${phpadminPort.value}`, '_blank');
+    dialogPortJumpRef.value.acceptParams({ port: phpadminPort.value });
 };
+
 const getAppDetail = (key: string) => {
     router.push({ name: 'AppDetail', params: { appKey: key } });
 };
@@ -289,14 +293,13 @@ const checkExist = (data: App.CheckInstalled) => {
     }
 };
 
-const onCopyPassword = (row: Database.MysqlDBInfo) => {
-    let input = document.createElement('input');
-    input.value = row.password;
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand('Copy');
-    document.body.removeChild(input);
-    MsgSuccess(i18n.global.t('commons.msg.copySuccess'));
+const onCopy = async (row: any) => {
+    try {
+        await toClipboard(row.password);
+        MsgSuccess(i18n.global.t('commons.msg.copySuccess'));
+    } catch (e) {
+        MsgError(i18n.global.t('commons.msg.copyfailed'));
+    }
 };
 
 const onDelete = async (row: Database.MysqlDBInfo) => {
@@ -314,6 +317,7 @@ const buttons = [
         click: (row: Database.MysqlDBInfo) => {
             let param = {
                 id: row.id,
+                mysqlName: row.name,
                 operation: 'password',
                 username: row.username,
                 password: row.password,
@@ -326,6 +330,7 @@ const buttons = [
         click: (row: Database.MysqlDBInfo) => {
             let param = {
                 id: row.id,
+                mysqlName: row.name,
                 operation: 'privilege',
                 privilege: '',
                 privilegeIPs: '',

@@ -24,11 +24,11 @@ func (u *ContainerService) PageNetwork(req dto.SearchWithPage) (int64, interface
 		return 0, nil, err
 	}
 	if len(req.Info) != 0 {
-		lenth, count := len(list), 0
-		for count < lenth {
+		length, count := len(list), 0
+		for count < length {
 			if !strings.Contains(list[count].Name, req.Info) {
 				list = append(list[:count], list[(count+1):]...)
-				lenth--
+				length--
 			} else {
 				count++
 			}
@@ -75,6 +75,26 @@ func (u *ContainerService) PageNetwork(req dto.SearchWithPage) (int64, interface
 
 	return int64(total), data, nil
 }
+
+func (u *ContainerService) ListNetwork() ([]dto.Options, error) {
+	client, err := docker.NewDockerClient()
+	if err != nil {
+		return nil, err
+	}
+	list, err := client.NetworkList(context.TODO(), types.NetworkListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	var datas []dto.Options
+	for _, item := range list {
+		datas = append(datas, dto.Options{Option: item.Name})
+	}
+	sort.Slice(datas, func(i, j int) bool {
+		return datas[i].Option < datas[j].Option
+	})
+	return datas, nil
+}
+
 func (u *ContainerService) DeleteNetwork(req dto.BatchDelete) error {
 	client, err := docker.NewDockerClient()
 	if err != nil {
@@ -90,7 +110,7 @@ func (u *ContainerService) DeleteNetwork(req dto.BatchDelete) error {
 	}
 	return nil
 }
-func (u *ContainerService) CreateNetwork(req dto.NetworkCreat) error {
+func (u *ContainerService) CreateNetwork(req dto.NetworkCreate) error {
 	client, err := docker.NewDockerClient()
 	if err != nil {
 		return err

@@ -71,7 +71,6 @@ import { onMounted, reactive, ref } from 'vue';
 import Status from '@/components/status/index.vue';
 import { ElMessageBox } from 'element-plus';
 import i18n from '@/lang';
-import LayoutContent from '@/layout/layout-content.vue';
 import { MsgSuccess } from '@/utils/message';
 
 const props = defineProps({
@@ -97,7 +96,7 @@ let operateReq = reactive({
 });
 let refresh = ref(1);
 
-const em = defineEmits(['setting', 'isExist', 'before', 'update:loading']);
+const em = defineEmits(['setting', 'isExist', 'before', 'update:loading', 'update:maskShow']);
 const setting = () => {
     em('setting', false);
 };
@@ -115,6 +114,7 @@ const onCheck = async () => {
 };
 
 const onOperate = async (operation: string) => {
+    em('update:maskShow', false);
     operateReq.operate = operation;
     ElMessageBox.confirm(
         i18n.global.t('app.operatorHelper', [i18n.global.t('app.' + operation)]),
@@ -124,19 +124,24 @@ const onOperate = async (operation: string) => {
             cancelButtonText: i18n.global.t('commons.button.cancel'),
             type: 'info',
         },
-    ).then(() => {
-        em('update:loading', true);
-        em('before');
-        InstalledOp(operateReq)
-            .then(() => {
-                em('update:loading', false);
-                MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
-                onCheck();
-            })
-            .catch(() => {
-                em('update:loading', false);
-            });
-    });
+    )
+        .then(() => {
+            em('update:maskShow', true);
+            em('update:loading', true);
+            em('before');
+            InstalledOp(operateReq)
+                .then(() => {
+                    em('update:loading', false);
+                    MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
+                    onCheck();
+                })
+                .catch(() => {
+                    em('update:loading', false);
+                });
+        })
+        .catch(() => {
+            em('update:maskShow', true);
+        });
 };
 
 const getTitle = (key: string) => {
@@ -155,27 +160,3 @@ onMounted(() => {
     onCheck();
 });
 </script>
-
-<style lang="scss">
-.app-warn {
-    text-align: center;
-    margin-top: 100px;
-    span:first-child {
-        color: #bbbfc4;
-    }
-
-    span:nth-child(2) {
-        color: $primary-color;
-        cursor: pointer;
-    }
-
-    span:nth-child(2):hover {
-        color: #74a4f3;
-    }
-
-    img {
-        width: 300px;
-        height: 300px;
-    }
-}
-</style>

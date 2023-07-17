@@ -8,15 +8,17 @@ type BackupOperate struct {
 	Bucket     string `json:"bucket"`
 	AccessKey  string `json:"accessKey"`
 	Credential string `json:"credential"`
+	BackupPath string `json:"backupPath"`
 	Vars       string `json:"vars" validate:"required"`
 }
 
 type BackupInfo struct {
-	ID        uint      `json:"id"`
-	CreatedAt time.Time `json:"createdAt"`
-	Type      string    `json:"type"`
-	Bucket    string    `json:"bucket"`
-	Vars      string    `json:"vars"`
+	ID         uint      `json:"id"`
+	CreatedAt  time.Time `json:"createdAt"`
+	Type       string    `json:"type"`
+	Bucket     string    `json:"bucket"`
+	BackupPath string    `json:"backupPath"`
+	Vars       string    `json:"vars"`
 }
 
 type BackupSearch struct {
@@ -36,6 +38,7 @@ type CommonBackup struct {
 	DetailName string `json:"detailName"`
 }
 type CommonRecover struct {
+	Source     string `json:"source" validate:"required,oneof=OSS S3 SFTP MINIO LOCAL COS KODO OneDrive"`
 	Type       string `json:"type" validate:"required,oneof=app mysql redis website"`
 	Name       string `json:"name"`
 	DetailName string `json:"detailName"`
@@ -59,7 +62,7 @@ type BackupRecords struct {
 }
 
 type DownloadRecord struct {
-	Source   string `json:"source" validate:"required,oneof=OSS S3 SFTP MINIO LOCAL"`
+	Source   string `json:"source" validate:"required,oneof=OSS S3 SFTP MINIO LOCAL COS KODO OneDrive"`
 	FileDir  string `json:"fileDir" validate:"required"`
 	FileName string `json:"fileName" validate:"required"`
 }

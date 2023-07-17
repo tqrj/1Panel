@@ -18,13 +18,13 @@
                             :stroke-width="12"
                             :percentage="uploadPrecent"
                         ></el-progress>
-                        <div v-if="type === 'mysql'" class="el-upload__tip">
+                        <div v-if="type === 'mysql'" style="width: 80%" class="el-upload__tip">
                             <span class="input-help">{{ $t('database.supportUpType') }}</span>
                             <span class="input-help">
                                 {{ $t('database.zipFormat') }}
                             </span>
                         </div>
-                        <div v-else class="el-upload__tip">
+                        <div v-else style="width: 80%" class="el-upload__tip">
                             <span class="input-help">{{ $t('website.supportUpType') }}</span>
                             <span class="input-help">
                                 {{ $t('website.zipFormat', [type + '.json']) }}
@@ -79,7 +79,6 @@
 </template>
 
 <script lang="ts" setup>
-import ComplexTable from '@/components/complex-table/index.vue';
 import { reactive, ref } from 'vue';
 import { computeSize } from '@/utils/util';
 import { useDeleteData } from '@/hooks/use-delete-data';
@@ -149,6 +148,7 @@ const search = async () => {
 
 const onRecover = async (row: File.File) => {
     let params = {
+        source: 'LOCAL',
         type: type.value,
         name: name.value,
         detailName: detailName.value,
@@ -280,7 +280,16 @@ const buttons = [
     {
         label: i18n.global.t('commons.button.recover'),
         click: (row: File.File) => {
-            onRecover(row);
+            if (type.value !== 'app') {
+                onRecover(row);
+            } else {
+                ElMessageBox.confirm(i18n.global.t('app.restoreWarn'), i18n.global.t('commons.button.recover'), {
+                    confirmButtonText: i18n.global.t('commons.button.confirm'),
+                    cancelButtonText: i18n.global.t('commons.button.cancel'),
+                }).then(async () => {
+                    onRecover(row);
+                });
+            }
         },
     },
     {

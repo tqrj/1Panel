@@ -27,7 +27,7 @@ func (b *BaseApi) GetNginx(c *gin.Context) {
 // @Description 获取部分 OpenResty 配置信息
 // @Accept json
 // @Param request body request.NginxScopeReq true "request"
-// @Success 200 {anrry} response.NginxParam
+// @Success 200 {array} response.NginxParam
 // @Security ApiKeyAuth
 // @Router /openResty/scope [post]
 func (b *BaseApi) GetNginxConfigByScope(c *gin.Context) {
@@ -53,7 +53,7 @@ func (b *BaseApi) GetNginxConfigByScope(c *gin.Context) {
 // @Success 200
 // @Security ApiKeyAuth
 // @Router /openResty/update [post]
-// @x-panel-log {"bodyKeys":["websiteId"],"paramKeys":[],"BeforeFuntions":[{"input_colume":"id","input_value":"websiteId","isList":false,"db":"websites","output_colume":"primary_domain","output_value":"domain"}],"formatZH":"更新 nginx 配置 [domain]","formatEN":"Update nginx conf [domain]"}
+// @x-panel-log {"bodyKeys":["websiteId"],"paramKeys":[],"BeforeFuntions":[{"input_column":"id","input_value":"websiteId","isList":false,"db":"websites","output_column":"primary_domain","output_value":"domain"}],"formatZH":"更新 nginx 配置 [domain]","formatEN":"Update nginx conf [domain]"}
 func (b *BaseApi) UpdateNginxConfigByScope(c *gin.Context) {
 	var req request.NginxConfigUpdate
 	if err := c.ShouldBindJSON(&req); err != nil {

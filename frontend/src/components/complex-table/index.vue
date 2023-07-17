@@ -22,8 +22,11 @@
         </template>
 
         <div class="complex-table__body">
-            <fu-table v-bind="$attrs" @selection-change="handleSelectionChange">
+            <fu-table v-bind="$attrs" ref="tableRef" @selection-change="handleSelectionChange">
                 <slot></slot>
+                <template #empty>
+                    <slot name="empty"></slot>
+                </template>
             </fu-table>
         </div>
 
@@ -34,13 +37,17 @@
                     v-model:page-size="paginationConfig.pageSize"
                     v-bind="paginationConfig"
                     @change="search"
+                    :small="mobile"
+                    :layout="mobile ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
                 />
             </slot>
         </div>
     </div>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { GlobalStore } from '@/store';
+
 defineOptions({ name: 'ComplexTable' });
 defineProps({
     header: String,
@@ -51,7 +58,15 @@ defineProps({
     },
 });
 const emit = defineEmits(['search', 'update:selects']);
+
+const globalStore = GlobalStore();
+
+const mobile = computed(() => {
+    return globalStore.isMobile();
+});
+
 const condition = ref({});
+const tableRef = ref();
 function search(conditions: any, e: any) {
     if (conditions) {
         condition.value = conditions;
@@ -62,6 +77,18 @@ function search(conditions: any, e: any) {
 function handleSelectionChange(row: any) {
     emit('update:selects', row);
 }
+
+function sort(prop: string, order: string) {
+    tableRef.value.refElTable.sort(prop, order);
+}
+
+function clearSelects() {
+    tableRef.value.refElTable.clearSelection();
+}
+defineExpose({
+    clearSelects,
+    sort,
+});
 </script>
 
 <style lang="scss">

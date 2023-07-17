@@ -14,6 +14,8 @@ const (
 	CodePasswordExpired   = 405
 	CodeAuth              = 406
 	CodeGlobalLoading     = 407
+	CodeErrIP             = 408
+	CodeErrDomain         = 409
 	CodeErrInternalServer = 500
 	CodeErrHeader         = 406
 )
@@ -30,20 +32,14 @@ var (
 	ErrInvalidParams   = errors.New("ErrInvalidParams")
 
 	ErrTokenParse = errors.New("ErrTokenParse")
-
-	ErrPageGenerate = errors.New("generate page info failed")
-	ErrRepoNotValid = "ErrRepoNotValid"
 )
 
 // api
 var (
 	ErrTypeInternalServer  = "ErrInternalServer"
 	ErrTypeInvalidParams   = "ErrInvalidParams"
-	ErrTypeToken           = "ErrToken"
-	ErrTypeTokenTimeOut    = "ErrTokenTimeOut"
 	ErrTypeNotLogin        = "ErrNotLogin"
 	ErrTypePasswordExpired = "ErrPasswordExpired"
-	ErrTypeNotSafety       = "ErrNotSafety"
 	ErrNameIsExist         = "ErrNameIsExist"
 	ErrDemoEnvironment     = "ErrDemoEnvironment"
 )
@@ -52,25 +48,31 @@ var (
 var (
 	ErrPortInUsed          = "ErrPortInUsed"
 	ErrAppLimit            = "ErrAppLimit"
-	ErrAppRequired         = "ErrAppRequired"
-	ErrFileCanNotRead      = "ErrFileCanNotRead"
 	ErrFileToLarge         = "ErrFileToLarge"
+	ErrFileCanNotRead      = "ErrFileCanNotRead"
 	ErrNotInstall          = "ErrNotInstall"
 	ErrPortInOtherApp      = "ErrPortInOtherApp"
 	ErrDbUserNotValid      = "ErrDbUserNotValid"
 	ErrUpdateBuWebsite     = "ErrUpdateBuWebsite"
 	Err1PanelNetworkFailed = "Err1PanelNetworkFailed"
+	ErrCmdTimeout          = "ErrCmdTimeout"
+	ErrFileParse           = "ErrFileParse"
+	ErrInstallDirNotFound  = "ErrInstallDirNotFound"
+	ErrContainerName       = "ErrContainerName"
 )
 
-//website
+// website
 var (
-	ErrDomainIsExist = "ErrDomainIsExist"
-	ErrAliasIsExist  = "ErrAliasIsExist"
-	ErrAppDelete     = "ErrAppDelete"
-	ErrGroupIsUsed   = "ErrGroupIsUsed"
+	ErrDomainIsExist      = "ErrDomainIsExist"
+	ErrAliasIsExist       = "ErrAliasIsExist"
+	ErrGroupIsUsed        = "ErrGroupIsUsed"
+	ErrUsernameIsExist    = "ErrUsernameIsExist"
+	ErrUsernameIsNotExist = "ErrUsernameIsNotExist"
+	ErrBackupMatch        = "ErrBackupMatch"
+	ErrBackupExist        = "ErrBackupExist"
 )
 
-//ssl
+// ssl
 var (
 	ErrSSLCannotDelete     = "ErrSSLCannotDelete"
 	ErrAccountCannotDelete = "ErrAccountCannotDelete"
@@ -78,28 +80,46 @@ var (
 	ErrEmailIsExist        = "ErrEmailIsExist"
 )
 
-//file
+// file
 var (
 	ErrPathNotFound     = "ErrPathNotFound"
 	ErrMovePathFailed   = "ErrMovePathFailed"
 	ErrLinkPathNotFound = "ErrLinkPathNotFound"
 	ErrFileIsExit       = "ErrFileIsExit"
 	ErrFileUpload       = "ErrFileUpload"
+	ErrFileDownloadDir  = "ErrFileDownloadDir"
 )
 
-//mysql
+// mysql
 var (
 	ErrUserIsExist     = "ErrUserIsExist"
 	ErrDatabaseIsExist = "ErrDatabaseIsExist"
+	ErrExecTimeOut     = "ErrExecTimeOut"
 )
 
-//redis
+// redis
 var (
 	ErrTypeOfRedis = "ErrTypeOfRedis"
 )
 
-//container
+// container
 var (
 	ErrInUsed       = "ErrInUsed"
 	ErrObjectInUsed = "ErrObjectInUsed"
+	ErrPortRules    = "ErrPortRules"
+	ErrRepoConn     = "ErrRepoConn"
+)
+
+// runtime
+var (
+	ErrDirNotFound    = "ErrDirNotFound"
+	ErrFileNotExist   = "ErrFileNotExist"
+	ErrImageBuildErr  = "ErrImageBuildErr"
+	ErrImageExist     = "ErrImageExist"
+	ErrDelWithWebsite = "ErrDelWithWebsite"
+)
+
+var (
+	ErrBackupInUsed = "ErrBackupInUsed"
+	ErrOSSConn      = "ErrOSSConn"
 )
