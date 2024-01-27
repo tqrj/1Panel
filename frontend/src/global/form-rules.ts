@@ -1,6 +1,13 @@
 import i18n from '@/lang';
 import { FormItemRule } from 'element-plus';
 
+const checkNoSpace = (rule: any, value: any, callback: any) => {
+    if (value.indexOf(' ') !== -1) {
+        return callback(new Error(i18n.global.t('setting.noSpace')));
+    }
+    callback();
+};
+
 const checkIp = (rule: any, value: any, callback: any) => {
     if (value === '' || typeof value === 'undefined' || value == null) {
         callback(new Error(i18n.global.t('commons.rule.requiredInput')));
@@ -15,7 +22,34 @@ const checkIp = (rule: any, value: any, callback: any) => {
     }
 };
 
-const checkIpV4V6 = (rule: any, value: any, callback: any) => {
+const checkIpV6 = (rule: any, value: any, callback: any) => {
+    if (value === '' || typeof value === 'undefined' || value == null) {
+        callback(new Error(i18n.global.t('commons.rule.requiredInput')));
+    } else {
+        const IPv4SegmentFormat = '(?:[0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])';
+        const IPv4AddressFormat = `(${IPv4SegmentFormat}[.]){3}${IPv4SegmentFormat}`;
+        const IPv6SegmentFormat = '(?:[0-9a-fA-F]{1,4})';
+        const IPv6AddressRegExp = new RegExp(
+            '^(' +
+                `(?:${IPv6SegmentFormat}:){7}(?:${IPv6SegmentFormat}|:)|` +
+                `(?:${IPv6SegmentFormat}:){6}(?:${IPv4AddressFormat}|:${IPv6SegmentFormat}|:)|` +
+                `(?:${IPv6SegmentFormat}:){5}(?::${IPv4AddressFormat}|(:${IPv6SegmentFormat}){1,2}|:)|` +
+                `(?:${IPv6SegmentFormat}:){4}(?:(:${IPv6SegmentFormat}){0,1}:${IPv4AddressFormat}|(:${IPv6SegmentFormat}){1,3}|:)|` +
+                `(?:${IPv6SegmentFormat}:){3}(?:(:${IPv6SegmentFormat}){0,2}:${IPv4AddressFormat}|(:${IPv6SegmentFormat}){1,4}|:)|` +
+                `(?:${IPv6SegmentFormat}:){2}(?:(:${IPv6SegmentFormat}){0,3}:${IPv4AddressFormat}|(:${IPv6SegmentFormat}){1,5}|:)|` +
+                `(?:${IPv6SegmentFormat}:){1}(?:(:${IPv6SegmentFormat}){0,4}:${IPv4AddressFormat}|(:${IPv6SegmentFormat}){1,6}|:)|` +
+                `(?::((?::${IPv6SegmentFormat}){0,5}:${IPv4AddressFormat}|(?::${IPv6SegmentFormat}){1,7}|:))` +
+                ')(%[0-9a-zA-Z-.:]{1,})?$',
+        );
+        if (!IPv6AddressRegExp.test(value) && value !== '') {
+            callback(new Error(i18n.global.t('commons.rule.ip')));
+        } else {
+            callback();
+        }
+    }
+};
+
+const checkIpV4V6OrDomain = (rule: any, value: any, callback: any) => {
     if (value === '' || typeof value === 'undefined' || value == null) {
         callback(new Error(i18n.global.t('commons.rule.requiredInput')));
     } else {
@@ -35,7 +69,8 @@ const checkIpV4V6 = (rule: any, value: any, callback: any) => {
                 `(?::((?::${IPv6SegmentFormat}){0,5}:${IPv4AddressFormat}|(?::${IPv6SegmentFormat}){1,7}|:))` +
                 ')(%[0-9a-zA-Z-.:]{1,})?$',
         );
-        if (!IPv4AddressRegExp.test(value) && !IPv6AddressRegExp.test(value) && value !== '') {
+        const regHost = /^(?=^.{3,255}$)[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$/;
+        if (!regHost.test(value) && !IPv4AddressRegExp.test(value) && !IPv6AddressRegExp.test(value) && value !== '') {
             callback(new Error(i18n.global.t('commons.rule.ip')));
         } else {
             callback();
@@ -71,7 +106,8 @@ const checkIllegal = (rule: any, value: any, callback: any) => {
         value.indexOf("'") !== -1 ||
         value.indexOf('`') !== -1 ||
         value.indexOf('(') !== -1 ||
-        value.indexOf(')') !== -1
+        value.indexOf(')') !== -1 ||
+        value.indexOf("'") !== -1
     ) {
         callback(new Error(i18n.global.t('commons.rule.illegalInput')));
     } else {
@@ -96,7 +132,7 @@ const checkName = (rule: any, value: any, callback: any) => {
     if (value === '' || typeof value === 'undefined' || value == null) {
         callback(new Error(i18n.global.t('commons.rule.commonName')));
     } else {
-        const reg = /^[a-zA-Z0-9\u4e00-\u9fa5]{1}[a-zA-Z0-9_.\u4e00-\u9fa5-]{0,29}$/;
+        const reg = /^[a-zA-Z0-9\u4e00-\u9fa5]{1}[a-zA-Z0-9_.\u4e00-\u9fa5-]{0,127}$/;
         if (!reg.test(value) && value !== '') {
             callback(new Error(i18n.global.t('commons.rule.commonName')));
         } else {
@@ -109,7 +145,7 @@ const checkUserName = (rule: any, value: any, callback: any) => {
     if (value === '' || typeof value === 'undefined' || value == null) {
         callback(new Error(i18n.global.t('commons.rule.userName')));
     } else {
-        const reg = /[a-zA-Z0-9_\u4e00-\u9fa5]{3,30}$/;
+        const reg = /^[a-zA-Z0-9_\u4e00-\u9fa5]{3,30}$/;
         if (!reg.test(value) && value !== '') {
             callback(new Error(i18n.global.t('commons.rule.userName')));
         } else {
@@ -122,7 +158,7 @@ const checkSimpleName = (rule: any, value: any, callback: any) => {
     if (value === '' || typeof value === 'undefined' || value == null) {
         callback(new Error(i18n.global.t('commons.rule.simpleName')));
     } else {
-        const reg = /^[a-zA-Z0-9]{1}[a-zA-Z0-9_]{0,30}$/;
+        const reg = /^[a-zA-Z0-9]{1}[a-zA-Z0-9_]{2,29}$/;
         if (!reg.test(value) && value !== '') {
             callback(new Error(i18n.global.t('commons.rule.simpleName')));
         } else {
@@ -135,7 +171,7 @@ const checkDBName = (rule: any, value: any, callback: any) => {
     if (value === '' || typeof value === 'undefined' || value == null) {
         callback(new Error(i18n.global.t('commons.rule.dbName')));
     } else {
-        const reg = /^[a-zA-Z0-9\u4e00-\u9fa5]{1}[a-zA-Z0-9_.\u4e00-\u9fa5-]{0,64}$/;
+        const reg = /^[a-zA-Z0-9\u4e00-\u9fa5]{1}[a-zA-Z0-9_.\u4e00-\u9fa5-]{0,63}$/;
         if (!reg.test(value) && value !== '') {
             callback(new Error(i18n.global.t('commons.rule.dbName')));
         } else {
@@ -223,6 +259,20 @@ const checkDomain = (rule: any, value: any, callback: any) => {
     }
 };
 
+const checkDomainWithPort = (rule: any, value: any, callback: any) => {
+    if (value === '' || typeof value === 'undefined' || value == null) {
+        callback(new Error(i18n.global.t('commons.rule.domain')));
+    } else {
+        const reg =
+            /^([\w\u4e00-\u9fa5\-\*]{1,100}\.){1,10}([\w\u4e00-\u9fa5\-]{1,24}|[\w\u4e00-\u9fa5\-]{1,24}\.[\w\u4e00-\u9fa5\-]{1,24})(:\d{1,5})?$/;
+        if (!reg.test(value) && value !== '') {
+            callback(new Error(i18n.global.t('commons.rule.domain')));
+        } else {
+            callback();
+        }
+    }
+};
+
 const checkIntegerNumber = (rule: any, value: any, callback: any) => {
     if (value === '' || typeof value === 'undefined' || value == null) {
         callback(new Error(i18n.global.t('commons.rule.integer')));
@@ -277,11 +327,11 @@ const checkParamCommon = (rule: any, value: any, callback: any) => {
 
 const checkParamComplexity = (rule: any, value: any, callback: any) => {
     if (value === '' || typeof value === 'undefined' || value == null) {
-        callback(new Error(i18n.global.t('commons.rule.paramComplexity', ['.%@$!&~_-'])));
+        callback(new Error(i18n.global.t('commons.rule.paramComplexity', ['.%@!~_-'])));
     } else {
-        const reg = /^[a-zA-Z0-9]{1}[a-zA-Z0-9.%@$!&~_-]{5,127}$/;
+        const reg = /^[a-zA-Z0-9]{1}[a-zA-Z0-9.%@!~_-]{4,126}[a-zA-Z0-9]{1}$/;
         if (!reg.test(value) && value !== '') {
-            callback(new Error(i18n.global.t('commons.rule.paramComplexity', ['.%@$!&~_-'])));
+            callback(new Error(i18n.global.t('commons.rule.paramComplexity', ['.%@!~_-'])));
         } else {
             callback();
         }
@@ -363,7 +413,7 @@ const checkContainerName = (rule: any, value: any, callback: any) => {
     if (value === '' || typeof value === 'undefined' || value == null) {
         callback();
     } else {
-        const reg = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{1,127}$/;
+        const reg = /^[a-zA-Z0-9]{1}[a-zA-Z0-9_.-]{1,127}$/;
         if (!reg.test(value) && value !== '') {
             callback(new Error(i18n.global.t('commons.rule.containerName')));
         } else {
@@ -376,7 +426,7 @@ const checkDisableFunctions = (rule: any, value: any, callback: any) => {
     if (value === '' || typeof value === 'undefined' || value == null) {
         callback(new Error(i18n.global.t('commons.rule.disableFunction')));
     } else {
-        const reg = /^[a-zA-Z,]+$/;
+        const reg = /^[a-zA-Z_,]+$/;
         if (!reg.test(value) && value !== '') {
             callback(new Error(i18n.global.t('commons.rule.disableFunction')));
         } else {
@@ -411,10 +461,37 @@ const checkParamSimple = (rule: any, value: any, callback: any) => {
     }
 };
 
+const checkFilePermission = (rule, value, callback) => {
+    if (value === '' || typeof value === 'undefined' || value == null) {
+        callback(new Error(i18n.global.t('commons.rule.filePermission')));
+    } else {
+        const regFilePermission = /^[0-7]{3,4}$/;
+        if (!regFilePermission.test(value)) {
+            callback(new Error(i18n.global.t('commons.rule.filePermission')));
+        } else {
+            callback();
+        }
+    }
+};
+
+const checkPHPExtensions = (rule, value, callback) => {
+    if (value === '' || typeof value === 'undefined' || value == null) {
+        callback(new Error(i18n.global.t('commons.rule.phpExtension')));
+    } else {
+        const reg = /^[a-z0-9,_]{1,300}$/;
+        if (!reg.test(value)) {
+            callback(new Error(i18n.global.t('commons.rule.phpExtension')));
+        } else {
+            callback();
+        }
+    }
+};
+
 interface CommonRule {
     requiredInput: FormItemRule;
     requiredSelect: FormItemRule;
     requiredSelectBusiness: FormItemRule;
+    noSpace: FormItemRule;
     name: FormItemRule;
     userName: FormItemRule;
     simpleName: FormItemRule;
@@ -429,7 +506,8 @@ interface CommonRule {
     integerNumberWith0: FormItemRule;
     floatNumber: FormItemRule;
     ip: FormItemRule;
-    ipV4V6: FormItemRule;
+    ipV6: FormItemRule;
+    ipV4V6OrDomain: FormItemRule;
     host: FormItemRule;
     illegal: FormItemRule;
     port: FormItemRule;
@@ -440,6 +518,9 @@ interface CommonRule {
     containerName: FormItemRule;
     disabledFunctions: FormItemRule;
     leechExts: FormItemRule;
+    domainWithPort: FormItemRule;
+    filePermission: FormItemRule;
+    phpExtensions: FormItemRule;
 
     paramCommon: FormItemRule;
     paramComplexity: FormItemRule;
@@ -466,6 +547,11 @@ export const Rules: CommonRule = {
         type: 'number',
         message: i18n.global.t('commons.rule.requiredSelect'),
         trigger: 'change',
+    },
+    noSpace: {
+        required: true,
+        validator: checkNoSpace,
+        trigger: 'blur',
     },
     simpleName: {
         required: true,
@@ -546,8 +632,13 @@ export const Rules: CommonRule = {
         required: true,
         trigger: 'blur',
     },
-    ipV4V6: {
-        validator: checkIpV4V6,
+    ipV6: {
+        validator: checkIpV6,
+        required: true,
+        trigger: 'blur',
+    },
+    ipV4V6OrDomain: {
+        validator: checkIpV4V6OrDomain,
         required: true,
         trigger: 'blur',
     },
@@ -623,5 +714,20 @@ export const Rules: CommonRule = {
         required: true,
         trigger: 'blur',
         validator: checkParamSimple,
+    },
+    domainWithPort: {
+        required: true,
+        validator: checkDomainWithPort,
+        trigger: 'blur',
+    },
+    filePermission: {
+        required: true,
+        validator: checkFilePermission,
+        trigger: 'blur',
+    },
+    phpExtensions: {
+        required: true,
+        validator: checkPHPExtensions,
+        trigger: 'blur',
     },
 };

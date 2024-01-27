@@ -152,48 +152,74 @@
                         </div>
                     </div>
                     <div v-if="website.type === 'runtime'">
-                        <el-form-item :label="$t('runtime.runtime')" prop="runtimeID">
-                            <el-select
-                                v-model="website.runtimeID"
-                                @change="changeRuntime(website.runtimeID)"
-                                filterable
-                            >
-                                <el-option
-                                    v-for="run in runtimes"
-                                    :key="run.name"
-                                    :label="run.name + '(' + $t('runtime.' + run.resource) + ')'"
-                                    :value="run.id"
-                                ></el-option>
-                            </el-select>
-                        </el-form-item>
-                        <Params
-                            v-if="runtimeResource === 'appstore'"
-                            :key="paramKey"
-                            v-model:form="website.appinstall.params"
-                            v-model:rules="rules.appinstall.params"
-                            :params="appParams"
-                            :propStart="'appinstall.params.'"
-                        ></Params>
-                        <div v-else>
-                            <el-form-item :label="$t('website.proxyType')" prop="proxyType">
-                                <el-select v-model="website.proxyType">
-                                    <el-option :label="$t('website.tcp')" :value="'tcp'"></el-option>
-                                    <el-option :label="$t('website.unix')" :value="'unix'"></el-option>
-                                </el-select>
-                            </el-form-item>
-                            <el-form-item
-                                v-if="website.proxyType === 'tcp'"
-                                :label="$t('commons.table.port')"
-                                prop="port"
-                            >
-                                <el-input v-model.number="website.port"></el-input>
-                            </el-form-item>
+                        <el-row :gutter="20">
+                            <el-col :span="8">
+                                <el-form-item :label="$t('commons.table.type')" prop="runtimeType">
+                                    <el-select v-model="website.runtimeType" @change="changeRuntimeType()">
+                                        <el-option label="PHP" value="php"></el-option>
+                                        <el-option label="Node.js" value="node"></el-option>
+                                    </el-select>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="16">
+                                <el-form-item :label="$t('runtime.runtime')" prop="runtimeID">
+                                    <el-select
+                                        v-model="website.runtimeID"
+                                        @change="changeRuntime(website.runtimeID)"
+                                        filterable
+                                    >
+                                        <el-option
+                                            v-for="run in runtimes"
+                                            :key="run.name"
+                                            :label="run.name + ' [' + $t('runtime.' + run.resource) + ']'"
+                                            :value="run.id"
+                                        >
+                                            <el-row>
+                                                <el-col :span="14">
+                                                    <span class="runtimeName">
+                                                        {{ run.name }}
+                                                    </span>
+                                                </el-col>
+                                                <el-col :span="10">
+                                                    {{ ' [' + $t('runtime.' + run.resource) + ']' }}
+                                                </el-col>
+                                            </el-row>
+                                        </el-option>
+                                    </el-select>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <div v-if="website.runtimeType === 'php'">
+                            <Params
+                                v-if="runtimeResource === 'appstore'"
+                                :key="paramKey"
+                                v-model:form="website.appinstall.params"
+                                v-model:rules="rules.appinstall.params"
+                                :params="appParams"
+                                :propStart="'appinstall.params.'"
+                            ></Params>
+                            <div v-else>
+                                <el-form-item :label="$t('website.proxyType')" prop="proxyType">
+                                    <el-select v-model="website.proxyType">
+                                        <el-option :label="$t('website.tcp')" :value="'tcp'"></el-option>
+                                        <el-option :label="$t('website.unix')" :value="'unix'"></el-option>
+                                    </el-select>
+                                </el-form-item>
+                                <el-form-item
+                                    v-if="website.proxyType === 'tcp'"
+                                    :label="$t('commons.table.port')"
+                                    prop="port"
+                                >
+                                    <el-input v-model.number="website.port"></el-input>
+                                </el-form-item>
+                            </div>
                         </div>
                     </div>
                     <el-form-item
                         prop="advanced"
                         v-if="
-                            website.type === 'runtime' || (website.type === 'deployment' && website.appType === 'new')
+                            (website.type === 'runtime' && website.runtimeType === 'php') ||
+                            (website.type === 'deployment' && website.appType === 'new')
                         "
                     >
                         <el-checkbox v-model="website.appinstall.advanced" :label="$t('app.advanced')" size="large" />
@@ -223,7 +249,7 @@
                                     <el-select
                                         v-model="website.appinstall.memoryUnit"
                                         placeholder="Select"
-                                        style="width: 85px"
+                                        class="pre-select"
                                     >
                                         <el-option label="KB" value="K" />
                                         <el-option label="MB" value="M" />
@@ -233,7 +259,7 @@
                             </el-input>
                             <span class="input-help">{{ $t('container.limitHelper') }}</span>
                         </el-form-item>
-                        <el-form-item prop="allowPort">
+                        <el-form-item prop="allowPort" v-if="website.type === 'deployment'">
                             <el-checkbox
                                 v-model="website.appinstall.allowPort"
                                 :label="$t('app.allowPort')"
@@ -246,12 +272,13 @@
                         <el-input
                             v-model.trim="website.primaryDomain"
                             @input="changeAlias(website.primaryDomain)"
+                            :placeholder="$t('website.primaryDomainHelper')"
                         ></el-input>
                     </el-form-item>
                     <el-form-item :label="$t('website.otherDomains')" prop="otherDomains">
                         <el-input
                             type="textarea"
-                            :autosize="{ minRows: 2, maxRows: 6 }"
+                            :rows="3"
                             v-model="website.otherDomains"
                             :placeholder="$t('website.domainHelper')"
                         ></el-input>
@@ -268,8 +295,20 @@
                             </span>
                         </div>
                     </el-form-item>
-                    <el-form-item v-if="website.type === 'proxy'" :label="$t('website.proxyAddress')" prop="proxy">
-                        <el-input v-model="website.proxy" :placeholder="$t('website.proxyHelper')"></el-input>
+                    <el-form-item
+                        v-if="website.type === 'proxy'"
+                        :label="$t('website.proxyAddress')"
+                        prop="proxyAddress"
+                    >
+                        <el-input v-model="website.proxyAddress" :placeholder="$t('website.proxyHelper')">
+                            <template #prepend>
+                                <el-select v-model="website.proxyProtocol" class="pre-select">
+                                    <el-option label="http" value="http://" />
+                                    <el-option label="https" value="https://" />
+                                    <el-option :label="$t('website.other')" value="" />
+                                </el-select>
+                            </template>
+                        </el-input>
                     </el-form-item>
                     <el-form-item :label="$t('website.remark')" prop="remark">
                         <el-input v-model="website.remark"></el-input>
@@ -297,14 +336,7 @@
 <script lang="ts" setup name="CreateWebSite">
 import DrawerHeader from '@/components/drawer-header/index.vue';
 import { App } from '@/api/interface/app';
-import {
-    GetApp,
-    GetAppDetail,
-    SearchApp,
-    GetAppInstalled,
-    GetAppDetailByID,
-    CheckAppInstalled,
-} from '@/api/modules/app';
+import { GetApp, GetAppDetail, SearchApp, GetAppInstalled, GetAppDetailByID } from '@/api/modules/app';
 import { CreateWebsite, PreCheck } from '@/api/modules/website';
 import { Rules, checkNumberRange } from '@/global/form-rules';
 import i18n from '@/lang';
@@ -348,15 +380,18 @@ const website = ref({
     IPV6: false,
     proxyType: 'tcp',
     port: 9000,
+    proxyProtocol: 'http://',
+    proxyAddress: '',
+    runtimeType: 'php',
 });
 const rules = ref<any>({
-    primaryDomain: [Rules.domain],
+    primaryDomain: [Rules.domainWithPort],
     alias: [Rules.linuxName],
     type: [Rules.requiredInput],
     webSiteGroupId: [Rules.requiredSelectBusiness],
     appInstallId: [Rules.requiredSelectBusiness],
     appType: [Rules.requiredInput],
-    proxy: [Rules.requiredInput],
+    proxyAddress: [Rules.requiredInput],
     runtimeID: [Rules.requiredSelectBusiness],
     appinstall: {
         name: [Rules.appName],
@@ -368,6 +403,7 @@ const rules = ref<any>({
     },
     proxyType: [Rules.requiredSelect],
     port: [Rules.port],
+    runtimeType: [Rules.requiredInput],
 });
 
 const open = ref(false);
@@ -378,7 +414,7 @@ const appInstalles = ref<App.AppInstalled[]>([]);
 const appReq = reactive({
     type: 'website',
     page: 1,
-    pageSize: 20,
+    pageSize: 100,
 });
 const apps = ref<App.App[]>([]);
 const appVersions = ref<string[]>([]);
@@ -403,33 +439,26 @@ const handleClose = () => {
 };
 
 const changeType = (type: string) => {
-    if (type == 'deployemnt') {
-        if (appInstalles.value && appInstalles.value.length > 0) {
-            website.value.appInstallId = appInstalles.value[0].id;
-        }
-    } else if (type == 'runtime') {
-        checkNginxVersion();
-        getRuntimes();
-    } else {
-        website.value.appInstallId = undefined;
+    switch (type) {
+        case 'deployment':
+            website.value.appType = 'installed';
+            if (appInstalles.value && appInstalles.value.length > 0) {
+                website.value.appInstallId = appInstalles.value[0].id;
+            }
+            break;
+        case 'runtime':
+            getRuntimes();
+            break;
+        default:
+            website.value.appInstallId = undefined;
+            break;
     }
     website.value.type = type;
     versionExist.value = true;
 };
 
-const checkNginxVersion = async () => {
-    try {
-        const res = await CheckAppInstalled('openresty');
-        if (res.data && res.data.version) {
-            if (!compareVersions(res.data.version, '1.21.4')) {
-                versionExist.value = false;
-            }
-        }
-    } catch (error) {}
-};
-
 const searchAppInstalled = () => {
-    GetAppInstalled({ type: 'website', unused: true }).then((res) => {
+    GetAppInstalled({ type: 'website', unused: true, all: true, page: 1, pageSize: 100 }).then((res) => {
         appInstalles.value = res.data;
         if (res.data && res.data.length > 0) {
             website.value.appInstallId = res.data[0].id;
@@ -485,12 +514,23 @@ const getAppDetailByID = (id: number) => {
     });
 };
 
+const changeRuntimeType = () => {
+    runtimeReq.value.type = website.value.runtimeType;
+    if (website.value.runtimeType == 'php') {
+        runtimeReq.value.status = 'normal';
+    } else {
+        runtimeReq.value.status = 'running';
+    }
+    website.value.runtimeID = undefined;
+    getRuntimes();
+};
+
 const changeRuntime = (runID: number) => {
     runtimes.value.forEach((item) => {
         if (item.id === runID) {
             runtimeResource.value = item.resource;
             if (item.resource === 'appstore') {
-                getAppDetailByID(item.appDetailId);
+                getAppDetailByID(item.appDetailID);
             }
         }
     });
@@ -505,7 +545,7 @@ const getRuntimes = async () => {
             website.value.runtimeID = first.id;
             runtimeResource.value = first.resource;
             if (first.resource === 'appstore') {
-                getAppDetailByID(first.appDetailId);
+                getAppDetailByID(first.appDetailID);
             }
         }
     } catch (error) {}
@@ -549,6 +589,9 @@ const submit = async (formEl: FormInstance | undefined) => {
                     loading.value = false;
                     preCheckRef.value.acceptParams({ items: res.data });
                 } else {
+                    if (website.value.type === 'proxy') {
+                        website.value.proxy = website.value.proxyProtocol + website.value.proxyAddress;
+                    }
                     CreateWebsite(website.value)
                         .then(() => {
                             MsgSuccess(i18n.global.t('commons.msg.createSuccess'));
@@ -566,27 +609,21 @@ const submit = async (formEl: FormInstance | undefined) => {
 };
 
 const changeAlias = (value: string) => {
-    website.value.alias = value;
+    const domain = value.split(':')[0];
+    website.value.alias = domain;
 };
-
-function compareVersions(version1: string, version2: string): boolean {
-    const v1 = version1.split('.');
-    const v2 = version2.split('.');
-    const len = Math.max(v1.length, v2.length);
-
-    for (let i = 0; i < len; i++) {
-        const num1 = parseInt(v1[i] || '0');
-        const num2 = parseInt(v2[i] || '0');
-
-        if (num1 !== num2) {
-            return num1 > num2 ? true : false;
-        }
-    }
-
-    return false;
-}
 
 defineExpose({
     acceptParams,
 });
 </script>
+
+<style lang="scss" scoped>
+.runtimeName {
+    width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+}
+</style>

@@ -5,6 +5,7 @@ import "time"
 type ImageInfo struct {
 	ID        string    `json:"id"`
 	CreatedAt time.Time `json:"createdAt"`
+	IsUsed    bool      `json:"isUsed"`
 	Tags      []string  `json:"tags"`
 	Size      string    `json:"size"`
 }
@@ -26,7 +27,6 @@ type ImagePull struct {
 }
 
 type ImageTag struct {
-	RepoID     uint   `json:"repoID"`
 	SourceID   string `json:"sourceID" validate:"required"`
 	TargetName string `json:"targetName" validate:"required"`
 }

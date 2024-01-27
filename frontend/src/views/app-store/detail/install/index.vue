@@ -11,7 +11,20 @@
         </template>
         <el-row v-loading="loading">
             <el-col :span="22" :offset="1">
-                <el-alert :title="$t('app.appInstallWarn')" class="common-prompt" :closable="false" type="error" />
+                <el-alert
+                    :title="$t('app.appInstallWarn')"
+                    class="common-prompt"
+                    :closable="false"
+                    type="error"
+                    v-if="!isHostMode"
+                />
+                <el-alert
+                    :title="$t('app.hostModeHelper')"
+                    class="common-prompt"
+                    :closable="false"
+                    type="warning"
+                    v-else
+                />
                 <el-form
                     @submit.prevent
                     ref="paramForm"
@@ -24,7 +37,18 @@
                     <el-form-item :label="$t('commons.table.name')" prop="name">
                         <el-input v-model.trim="req.name"></el-input>
                     </el-form-item>
+                    <el-form-item :label="$t('app.version')" prop="version">
+                        <el-select v-model="req.version" @change="getAppDetail(req.version)">
+                            <el-option
+                                v-for="(version, index) in appVersions"
+                                :key="index"
+                                :label="version"
+                                :value="version"
+                            ></el-option>
+                        </el-select>
+                    </el-form-item>
                     <Params
+                        :key="paramKey"
                         v-if="open"
                         v-model:form="req.params"
                         v-model:params="installData.params"
@@ -40,6 +64,10 @@
                                 v-model.trim="req.containerName"
                                 :placeholder="$t('app.containerNameHelper')"
                             ></el-input>
+                        </el-form-item>
+                        <el-form-item prop="allowPort" v-if="!isHostMode">
+                            <el-checkbox v-model="req.allowPort" :label="$t('app.allowPort')" size="large" />
+                            <span class="input-help">{{ $t('app.allowPortHelper') }}</span>
                         </el-form-item>
                         <el-form-item
                             :label="$t('container.cpuQuota')"
@@ -75,10 +103,7 @@
                                 {{ $t('container.limitHelper', [limits.memory]) }}{{ req.memoryUnit }}B
                             </span>
                         </el-form-item>
-                        <el-form-item prop="allowPort" v-if="canEditPort(installData.app)">
-                            <el-checkbox v-model="req.allowPort" :label="$t('app.allowPort')" size="large" />
-                            <span class="input-help">{{ $t('app.allowPortHelper') }}</span>
-                        </el-form-item>
+
                         <el-form-item prop="editCompose">
                             <el-checkbox v-model="req.editCompose" :label="$t('app.editCompose')" size="large" />
                             <span class="input-help">{{ $t('app.editComposeHelper') }}</span>
@@ -116,9 +141,8 @@
 
 <script lang="ts" setup name="appInstall">
 import { App } from '@/api/interface/app';
-import { InstallApp } from '@/api/modules/app';
+import { GetApp, GetAppDetail, InstallApp } from '@/api/modules/app';
 import { Rules, checkNumberRange } from '@/global/form-rules';
-import { canEditPort } from '@/global/business';
 import { FormInstance, FormRules } from 'element-plus';
 import { onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -136,21 +160,18 @@ const extensions = [javascript(), oneDark];
 const router = useRouter();
 
 interface InstallRrops {
-    appDetailId: number;
     params?: App.AppParams;
     app: any;
-    compose: string;
 }
 
 const installData = ref<InstallRrops>({
-    appDetailId: 0,
     app: {},
-    compose: '',
 });
 const open = ref(false);
 const rules = ref<FormRules>({
     name: [Rules.appName],
     params: [],
+    version: [Rules.requiredSelect],
     containerName: [Rules.containerName],
     cpuQuota: [Rules.requiredInput, checkNumberRange(0, 99999)],
     memoryLimit: [Rules.requiredInput, checkNumberRange(0, 9999999999)],
@@ -170,6 +191,8 @@ const initData = () => ({
     allowPort: false,
     editCompose: false,
     dockerCompose: '',
+    version: '',
+    appID: '',
 });
 const req = reactive(initData());
 const limits = ref<Container.ResourceLimit>({
@@ -177,11 +200,16 @@ const limits = ref<Container.ResourceLimit>({
     memory: null as number,
 });
 const oldMemory = ref<number>(0);
-
+const appVersions = ref<string[]>([]);
 const handleClose = () => {
     open.value = false;
     resetForm();
+    if (router.currentRoute.value.query.install) {
+        router.push({ name: 'AppAll' });
+    }
 };
+const paramKey = ref(1);
+const isHostMode = ref(false);
 
 const changeUnit = () => {
     if (req.memoryUnit == 'M') {
@@ -196,15 +224,43 @@ const resetForm = () => {
         paramForm.value.clearValidate();
         paramForm.value.resetFields();
     }
+    isHostMode.value = false;
     Object.assign(req, initData());
-    req.dockerCompose = installData.value.compose;
 };
 
-const acceptParams = (props: InstallRrops): void => {
-    installData.value = props;
+const acceptParams = async (props: InstallRrops) => {
     resetForm();
+    if (props.app.versions != undefined) {
+        installData.value = props;
+    } else {
+        const res = await GetApp(props.app.key);
+        installData.value.app = res.data;
+    }
+
+    const app = installData.value.app;
+    appVersions.value = app.versions;
+    if (appVersions.value.length > 0) {
+        req.version = appVersions.value[0];
+        getAppDetail(appVersions.value[0]);
+    }
+
     req.name = props.app.key;
     open.value = true;
+};
+
+const getAppDetail = async (version: string) => {
+    loading.value = true;
+    try {
+        const res = await GetAppDetail(installData.value.app.id, version, 'app');
+        req.appDetailId = res.data.id;
+        req.dockerCompose = res.data.dockerCompose;
+        isHostMode.value = res.data.hostMode;
+        installData.value.params = res.data.params;
+        paramKey.value++;
+    } catch (error) {
+    } finally {
+        loading.value = false;
+    }
 };
 
 const submit = async (formEl: FormInstance | undefined) => {
@@ -217,14 +273,13 @@ const submit = async (formEl: FormInstance | undefined) => {
             MsgError(i18n.global.t('app.composeNullErr'));
             return;
         }
-        req.appDetailId = installData.value.appDetailId;
         if (req.cpuQuota < 0) {
             req.cpuQuota = 0;
         }
         if (req.memoryLimit < 0) {
             req.memoryLimit = 0;
         }
-        if (installData.value.app.key != 'openresty' && req.advanced && !req.allowPort) {
+        if (!isHostMode.value && !req.allowPort) {
             ElMessageBox.confirm(i18n.global.t('app.installWarn'), i18n.global.t('app.checkTitle'), {
                 confirmButtonText: i18n.global.t('commons.button.confirm'),
                 cancelButtonText: i18n.global.t('commons.button.cancel'),

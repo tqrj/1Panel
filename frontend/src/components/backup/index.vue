@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-drawer v-model="backupVisiable" :destroy-on-close="true" :close-on-click-modal="false" size="50%">
+        <el-drawer v-model="backupVisible" :destroy-on-close="true" :close-on-click-modal="false" size="50%">
             <template #header>
                 <DrawerHeader
                     v-if="detailName"
@@ -27,6 +27,14 @@
                 </template>
                 <el-table-column type="selection" fix />
                 <el-table-column :label="$t('commons.table.name')" prop="fileName" show-overflow-tooltip />
+                <el-table-column :label="$t('file.size')" prop="size" show-overflow-tooltip>
+                    <template #default="{ row }">
+                        <span v-if="row.size">
+                            {{ computeSize(row.size) }}
+                        </span>
+                        <span v-else>-</span>
+                    </template>
+                </el-table-column>
                 <el-table-column :label="$t('database.source')" prop="backupType">
                     <template #default="{ row }">
                         <span v-if="row.source">
@@ -41,35 +49,38 @@
                     show-overflow-tooltip
                 />
 
-                <fu-table-operations :buttons="buttons" :label="$t('commons.table.operate')" fix />
+                <fu-table-operations width="230px" :buttons="buttons" :label="$t('commons.table.operate')" fix />
             </ComplexTable>
         </el-drawer>
+
+        <OpDialog ref="opRef" @search="search" />
     </div>
 </template>
 
 <script lang="ts" setup>
 import { reactive, ref } from 'vue';
-import { dateFormat, downloadFile } from '@/utils/util';
-import { useDeleteData } from '@/hooks/use-delete-data';
+import OpDialog from '@/components/del-dialog/index.vue';
+import { computeSize, dateFormat, downloadFile } from '@/utils/util';
 import { handleBackup, handleRecover } from '@/api/modules/setting';
 import i18n from '@/lang';
 import DrawerHeader from '@/components/drawer-header/index.vue';
 import { deleteBackupRecord, downloadBackupRecord, searchBackupRecords } from '@/api/modules/setting';
 import { Backup } from '@/api/interface/backup';
 import { MsgSuccess } from '@/utils/message';
-// import { DownloadByPath } from '@/api/modules/files';
 
 const selects = ref<any>([]);
 const loading = ref();
+const opRef = ref();
 
 const data = ref();
 const paginationConfig = reactive({
+    cacheSizeKey: 'backup-page-size',
     currentPage: 1,
     pageSize: 10,
     total: 0,
 });
 
-const backupVisiable = ref(false);
+const backupVisible = ref(false);
 const type = ref();
 const name = ref();
 const detailName = ref();
@@ -83,11 +94,11 @@ const acceptParams = (params: DialogProps): void => {
     type.value = params.type;
     name.value = params.name;
     detailName.value = params.detailName;
-    backupVisiable.value = true;
+    backupVisible.value = true;
     search();
 };
 const handleClose = () => {
-    backupVisiable.value = false;
+    backupVisible.value = false;
 };
 
 const search = async () => {
@@ -98,46 +109,71 @@ const search = async () => {
         name: name.value,
         detailName: detailName.value,
     };
-    const res = await searchBackupRecords(params);
-    data.value = res.data.items || [];
-    paginationConfig.total = res.data.total;
+    loading.value = true;
+    await searchBackupRecords(params)
+        .then((res) => {
+            loading.value = false;
+            data.value = res.data.items || [];
+            paginationConfig.total = res.data.total;
+        })
+        .catch(() => {
+            loading.value = false;
+        });
 };
 
 const onBackup = async () => {
-    let params = {
-        type: type.value,
-        name: name.value,
-        detailName: detailName.value,
-    };
-    loading.value = true;
-    await handleBackup(params)
-        .then(() => {
-            loading.value = false;
-            MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
-            search();
-        })
-        .catch(() => {
-            loading.value = false;
-        });
+    ElMessageBox.confirm(
+        i18n.global.t('commons.msg.backupHelper', [name.value + '( ' + detailName.value + ' )']),
+        i18n.global.t('commons.button.backup'),
+        {
+            confirmButtonText: i18n.global.t('commons.button.confirm'),
+            cancelButtonText: i18n.global.t('commons.button.cancel'),
+        },
+    ).then(async () => {
+        let params = {
+            type: type.value,
+            name: name.value,
+            detailName: detailName.value,
+        };
+        loading.value = true;
+        await handleBackup(params)
+            .then(() => {
+                loading.value = false;
+                MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
+                search();
+            })
+            .catch(() => {
+                loading.value = false;
+            });
+    });
 };
 
 const onRecover = async (row: Backup.RecordInfo) => {
-    let params = {
-        source: row.source,
-        type: type.value,
-        name: name.value,
-        detailName: detailName.value,
-        file: row.fileDir + '/' + row.fileName,
-    };
-    loading.value = true;
-    await handleRecover(params)
-        .then(() => {
-            loading.value = false;
-            MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
-        })
-        .catch(() => {
-            loading.value = false;
-        });
+    ElMessageBox.confirm(
+        i18n.global.t('commons.msg.recoverHelper', [row.fileName]),
+        i18n.global.t('commons.button.recover'),
+        {
+            confirmButtonText: i18n.global.t('commons.button.confirm'),
+            cancelButtonText: i18n.global.t('commons.button.cancel'),
+        },
+    ).then(async () => {
+        let params = {
+            source: row.source,
+            type: type.value,
+            name: name.value,
+            detailName: detailName.value,
+            file: row.fileDir + '/' + row.fileName,
+        };
+        loading.value = true;
+        await handleRecover(params)
+            .then(() => {
+                loading.value = false;
+                MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
+            })
+            .catch(() => {
+                loading.value = false;
+            });
+    });
 };
 
 const onDownload = async (row: Backup.RecordInfo) => {
@@ -153,15 +189,26 @@ const onDownload = async (row: Backup.RecordInfo) => {
 
 const onBatchDelete = async (row: Backup.RecordInfo | null) => {
     let ids: Array<number> = [];
+    let names = [];
     if (row) {
         ids.push(row.id);
+        names.push(row.fileName);
     } else {
         selects.value.forEach((item: Backup.RecordInfo) => {
             ids.push(item.id);
+            names.push(item.fileName);
         });
     }
-    await useDeleteData(deleteBackupRecord, { ids: ids }, 'commons.msg.delete');
-    search();
+    opRef.value.acceptParams({
+        names: names,
+        title: i18n.global.t('commons.button.delete'),
+        api: deleteBackupRecord,
+        msg: i18n.global.t('commons.msg.operatorHelper', [
+            i18n.global.t('commons.button.backup'),
+            i18n.global.t('commons.button.delete'),
+        ]),
+        params: { ids: ids },
+    });
 };
 
 const buttons = [
@@ -173,12 +220,18 @@ const buttons = [
     },
     {
         label: i18n.global.t('commons.button.recover'),
+        disabled: (row: any) => {
+            return row.size === 0;
+        },
         click: (row: Backup.RecordInfo) => {
             onRecover(row);
         },
     },
     {
         label: i18n.global.t('commons.button.download'),
+        disabled: (row: any) => {
+            return row.size === 0;
+        },
         click: (row: Backup.RecordInfo) => {
             onDownload(row);
         },

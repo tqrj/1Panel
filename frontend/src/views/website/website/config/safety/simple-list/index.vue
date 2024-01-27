@@ -13,12 +13,7 @@
                 />
             </el-form-item>
             <el-form-item :label="$t('website.ipValue')">
-                <el-input
-                    type="textarea"
-                    :autosize="{ minRows: 4, maxRows: 8 }"
-                    v-model="ips"
-                    :placeholder="$t('website.wafInputHelper')"
-                />
+                <el-input type="textarea" :rows="3" v-model="ips" :placeholder="$t('website.wafInputHelper')" />
             </el-form-item>
             <ComplexTable :data="data" v-loading="loading">
                 <template #toolbar>
@@ -40,9 +35,8 @@
 </template>
 <script lang="ts" setup>
 import { Website } from '@/api/interface/website';
-import { GetWafConfig, UpdateWafEnable } from '@/api/modules/website';
+import { GetWafConfig, UpdateWafEnable, UpdateWafFile } from '@/api/modules/website';
 import { computed, onMounted, reactive, ref } from 'vue';
-import { SaveFileContent } from '@/api/modules/files';
 import i18n from '@/lang';
 import { checkIpV4V6 } from '@/utils/util';
 import { MsgSuccess } from '@/utils/message';
@@ -55,7 +49,7 @@ const props = defineProps({
     },
     rule: {
         type: String,
-        default: 'ipWhiteList',
+        default: 'ip_white',
     },
     paramKey: {
         type: String,
@@ -72,23 +66,24 @@ const key = computed(() => {
     return props.paramKey;
 });
 
-let loading = ref(false);
-let data = ref([]);
-let req = ref<Website.WafReq>({
+const loading = ref(false);
+const data = ref([]);
+const req = ref<Website.WafReq>({
     websiteId: 0,
     key: '$ipWhiteAllow',
     rule: 'ip_white',
 });
-let fileUpdate = reactive({
-    path: '',
+const fileUpdate = reactive({
     content: '',
+    websiteId: 0,
+    type: 'ip_white',
 });
-let enableUpdate = ref<Website.WafUpdate>({
+const enableUpdate = ref<Website.WafUpdate>({
     websiteId: 0,
     key: '$ipWhiteAllow',
     enable: false,
 });
-let ips = ref();
+const ips = ref();
 
 const get = async () => {
     data.value = [];
@@ -105,7 +100,6 @@ const get = async () => {
         });
     }
     enableUpdate.value.enable = res.data.enable;
-    fileUpdate.path = res.data.filePath;
 };
 
 const removeIp = (index: number) => {
@@ -152,7 +146,7 @@ const openCreate = () => {
 const submit = async (ipList: string[]) => {
     fileUpdate.content = JSON.stringify(ipList);
     loading.value = true;
-    SaveFileContent(fileUpdate)
+    UpdateWafFile(fileUpdate)
         .then(() => {
             ips.value = '';
             get();
@@ -180,6 +174,8 @@ onMounted(() => {
     req.value.key = key.value;
     enableUpdate.value.websiteId = id.value;
     enableUpdate.value.key = key.value;
+    fileUpdate.type = rule.value;
+    fileUpdate.websiteId = id.value;
     get();
 });
 </script>

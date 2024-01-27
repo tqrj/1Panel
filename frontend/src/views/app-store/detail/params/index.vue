@@ -79,7 +79,13 @@
                                 :key="service.label"
                                 :value="service.value"
                                 :label="service.label"
-                            ></el-option>
+                            >
+                                <span>{{ service.label }}</span>
+                                <span class="float-right" v-if="service.from != ''">
+                                    <el-tag v-if="service.from === 'local'">{{ $t('database.local') }}</el-tag>
+                                    <el-tag v-else type="success">{{ $t('database.remote') }}</el-tag>
+                                </span>
+                            </el-option>
                         </el-select>
                     </el-form-item>
                 </el-col>
@@ -102,6 +108,7 @@ import { Rules } from '@/global/form-rules';
 import { App } from '@/api/interface/app';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { getDBName } from '@/utils/util';
 const router = useRouter();
 
 interface ParamObj extends App.FromField {
@@ -167,7 +174,11 @@ const handleParams = () => {
             pObj.disabled = p.disabled;
             paramObjs.value.push(pObj);
             if (p.random) {
-                form[p.envKey] = p.default + '_' + getRandomStr(6);
+                if (p.envKey === 'PANEL_DB_NAME') {
+                    form[p.envKey] = p.default + '_' + getDBName(6);
+                } else {
+                    form[p.envKey] = p.default + '_' + getRandomStr(6);
+                }
             } else {
                 form[p.envKey] = p.default;
             }
@@ -244,8 +255,8 @@ const getLabel = (row: ParamObj): string => {
     }
 };
 
-const toPage = (appKey: string) => {
-    router.push({ name: 'AppDetail', params: { appKey: appKey } });
+const toPage = (key: string) => {
+    router.push({ name: 'AppAll', query: { install: key } });
 };
 
 onMounted(() => {

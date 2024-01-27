@@ -28,13 +28,28 @@ const getType = (status: string) => {
         case 'stopped':
             return 'danger';
         case 'unhealthy':
+        case 'paused':
+        case 'exited':
+        case 'dead':
+        case 'removing':
             return 'warning';
         default:
             return '';
     }
 };
 
-const loadingStatus = ['installing', 'building', 'restarting', 'upgrading'];
+const loadingStatus = [
+    'installing',
+    'building',
+    'restarting',
+    'upgrading',
+    'rebuilding',
+    'recreating',
+    'creating',
+    'starting',
+    'removing',
+    'applying',
+];
 
 const loadingIcon = (status: string): boolean => {
     return loadingStatus.indexOf(status) > -1;

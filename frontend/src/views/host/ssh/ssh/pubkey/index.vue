@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-drawer
-            v-model="drawerVisiable"
+            v-model="drawerVisible"
             :destroy-on-close="true"
             @close="handleClose"
             :close-on-click-modal="false"
@@ -36,16 +36,12 @@
                         </el-form-item>
 
                         <el-form-item :label="$t('ssh.key')" prop="primaryKey" v-if="form.encryptionMode">
-                            <el-input
-                                v-model="form.primaryKey"
-                                :autosize="{ minRows: 5, maxRows: 10 }"
-                                type="textarea"
-                            />
+                            <el-input v-model="form.primaryKey" :rows="5" type="textarea" />
                             <div v-if="form.primaryKey">
-                                <el-button icon="CopyDocument" class="margintop" @click="onCopy(form.primaryKey)">
+                                <el-button icon="CopyDocument" class="marginTop" @click="onCopy(form.primaryKey)">
                                     {{ $t('file.copy') }}
                                 </el-button>
-                                <el-button icon="Download" class="margintop" @click="onDownload">
+                                <el-button icon="Download" class="marginTop" @click="onDownload">
                                     {{ $t('commons.button.download') }}
                                 </el-button>
                             </div>
@@ -55,7 +51,7 @@
             </el-form>
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="drawerVisiable = false">{{ $t('commons.button.cancel') }}</el-button>
+                    <el-button @click="drawerVisible = false">{{ $t('commons.button.cancel') }}</el-button>
                     <el-button @click="onGenerate(formRef)" type="primary">
                         {{ $t('ssh.generate') }}
                     </el-button>
@@ -68,16 +64,14 @@
 import { generateSecret, loadSecret } from '@/api/modules/host';
 import { Rules } from '@/global/form-rules';
 import i18n from '@/lang';
-import { MsgError, MsgSuccess } from '@/utils/message';
-import { dateFormatForName, getRandomStr } from '@/utils/util';
-import useClipboard from 'vue-clipboard3';
+import { MsgSuccess } from '@/utils/message';
+import { copyText, dateFormatForName, getRandomStr } from '@/utils/util';
 import { FormInstance } from 'element-plus';
 import DrawerHeader from '@/components/drawer-header/index.vue';
 import { reactive, ref } from 'vue';
-const { toClipboard } = useClipboard();
 
 const loading = ref();
-const drawerVisiable = ref();
+const drawerVisible = ref();
 
 const formRef = ref();
 const form = reactive({
@@ -105,7 +99,7 @@ const acceptParams = async (): Promise<void> => {
     form.encryptionMode = 'rsa';
     form.primaryKey = '';
     onLoadSecret();
-    drawerVisiable.value = true;
+    drawerVisible.value = true;
 };
 
 const random = async () => {
@@ -118,12 +112,7 @@ const onLoadSecret = async () => {
 };
 
 const onCopy = async (str: string) => {
-    try {
-        await toClipboard(str);
-        MsgSuccess(i18n.global.t('commons.msg.copySuccess'));
-    } catch (e) {
-        MsgError(i18n.global.t('commons.msg.copyfailed'));
-    }
+    copyText(str);
 };
 
 const onGenerate = async (formEl: FormInstance | undefined) => {
@@ -154,7 +143,7 @@ const onDownload = async () => {
 };
 
 const handleClose = () => {
-    drawerVisiable.value = false;
+    drawerVisible.value = false;
 };
 
 defineExpose({
@@ -163,7 +152,7 @@ defineExpose({
 </script>
 
 <style scoped lang="scss">
-.margintop {
+.marginTop {
     margin-top: 10px;
 }
 </style>

@@ -2,9 +2,12 @@
     <el-page-header @back="props.back">
         <template #content>
             <span>{{ header }}</span>
-            <span v-if="resource">
+            <span v-if="resource && !hideResource">
                 -
-                <el-tag effect="dark" type="success">{{ resource }}</el-tag>
+                <el-tooltip v-if="resource.length > 25" :content="resource" placement="bottom">
+                    <el-tag effect="dark" type="success">{{ resource.substring(0, 23) + '...' }}</el-tag>
+                </el-tooltip>
+                <el-tag v-else effect="dark" type="success">{{ resource }}</el-tag>
             </span>
             <el-divider v-if="slots.buttons" direction="vertical" />
             <slot v-if="slots.buttons" name="buttons"></slot>
@@ -25,5 +28,6 @@ const props = defineProps({
     header: String,
     back: Function,
     resource: String,
+    hideResource: Boolean,
 });
 </script>

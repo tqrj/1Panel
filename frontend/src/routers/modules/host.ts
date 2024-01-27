@@ -1,7 +1,7 @@
 import { Layout } from '@/routers/constant';
 
 const hostRouter = {
-    sort: 7,
+    sort: 6,
     path: '/hosts',
     component: Layout,
     redirect: '/hosts/security',
@@ -43,6 +43,7 @@ const hostRouter = {
         {
             path: '/hosts/terminal',
             name: 'Terminal',
+            props: true,
             component: () => import('@/views/host/terminal/index.vue'),
             meta: {
                 title: 'menu.terminal',

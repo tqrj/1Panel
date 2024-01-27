@@ -2,12 +2,16 @@ import { ReqPage } from '.';
 
 export namespace Container {
     export interface ContainerOperate {
-        name: string;
+        names: Array<string>;
         operation: string;
+    }
+    export interface ContainerRename {
+        name: string;
         newName: string;
     }
     export interface ContainerSearch extends ReqPage {
         name: string;
+        state: string;
         filters: string;
         orderBy: string;
         order: string;
@@ -20,17 +24,23 @@ export namespace Container {
         containerID: string;
         name: string;
         image: string;
+        imageInput: boolean;
         forcePull: boolean;
         network: string;
         cmdStr: string;
+        entrypointStr: string;
         memoryItem: number;
         cmd: Array<string>;
+        openStdin: boolean;
+        tty: boolean;
+        entrypoint: Array<string>;
         publishAllPorts: boolean;
         exposedPorts: Array<Port>;
         nanoCPUs: number;
         cpuShares: number;
         memory: number;
         volumes: Array<Volume>;
+        privileged: boolean;
         autoRemove: boolean;
         labels: Array<string>;
         labelsStr: string;
@@ -49,6 +59,7 @@ export namespace Container {
         sourceDir: string;
         containerDir: string;
         mode: string;
+        isVolume: boolean;
     }
     export interface ContainerInfo {
         containerID: string;
@@ -57,6 +68,7 @@ export namespace Container {
         createTime: string;
         state: string;
         runTime: string;
+        network: Array<string>;
         ports: Array<string>;
         isFromApp: boolean;
         isFromCompose: boolean;
@@ -67,7 +79,13 @@ export namespace Container {
     }
     export interface ContainerListStats {
         containerID: string;
+        cpuTotalUsage: number;
+        systemUsage: number;
         cpuPercent: number;
+        percpuUsage: number;
+        memoryCache: number;
+        memoryUsage: number;
+        memoryLimit: number;
         memoryPercent: number;
     }
     export interface ContainerStats {
@@ -102,6 +120,7 @@ export namespace Container {
         name: string;
         tags: Array<string>;
         size: string;
+        isUsed: boolean;
     }
     export interface ImageBuild {
         from: string;
@@ -114,7 +133,6 @@ export namespace Container {
         imageName: string;
     }
     export interface ImageTag {
-        repoID: number;
         sourceID: string;
         targetName: string;
     }
@@ -279,6 +297,12 @@ export namespace Container {
         liveRestore: boolean;
         iptables: boolean;
         cgroupDriver: string;
+
+        ipv6: boolean;
+        fixedCidrV6: string;
+        ip6Tables: boolean;
+        experimental: boolean;
+
         logMaxSize: string;
         logMaxFile: string;
     }

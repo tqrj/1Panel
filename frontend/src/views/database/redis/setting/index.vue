@@ -90,7 +90,7 @@
                                     <span class="input-help">{{ $t('database.maxmemoryHelper') }}</span>
                                 </el-form-item>
                                 <el-form-item>
-                                    <el-button type="primary" @click="onSubmtiForm(formRef)">
+                                    <el-button type="primary" @click="onSubmitForm(formRef)">
                                         {{ $t('commons.button.save') }}
                                     </el-button>
                                 </el-form-item>
@@ -119,9 +119,9 @@
             </template>
         </LayoutContent>
 
-        <ConfirmDialog ref="confirmDialogRef" @confirm="submtiFile"></ConfirmDialog>
-        <ConfirmDialog ref="confirmFileRef" @confirm="submtiFile"></ConfirmDialog>
-        <ConfirmDialog ref="confirmFormRef" @confirm="submtiForm"></ConfirmDialog>
+        <ConfirmDialog ref="confirmDialogRef" @confirm="submitFile"></ConfirmDialog>
+        <ConfirmDialog ref="confirmFileRef" @confirm="submitFile"></ConfirmDialog>
+        <ConfirmDialog ref="confirmFormRef" @confirm="submitForm"></ConfirmDialog>
         <ConfirmDialog ref="confirmPortRef" @confirm="onChangePort(portRef)"></ConfirmDialog>
     </div>
 </template>
@@ -132,15 +132,13 @@ import { nextTick, reactive, ref, shallowRef } from 'vue';
 import { Codemirror } from 'vue-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { LoadFile } from '@/api/modules/files';
 import ConfirmDialog from '@/components/confirm-dialog/index.vue';
 import Status from '@/views/database/redis/setting/status/index.vue';
 import Persistence from '@/views/database/redis/setting/persistence/index.vue';
-import { loadRedisConf, updateRedisConf, updateRedisConfByFile } from '@/api/modules/database';
+import { loadDBFile, loadRedisConf, updateRedisConf, updateDBFile } from '@/api/modules/database';
 import i18n from '@/lang';
 import { checkNumberRange, Rules } from '@/global/form-rules';
 import { ChangePort, GetAppDefaultConfig } from '@/api/modules/app';
-import { loadBaseDir } from '@/api/modules/setting';
 import { MsgSuccess } from '@/utils/message';
 
 const extensions = [javascript(), oneDark];
@@ -262,7 +260,7 @@ const onChangePort = async (formEl: FormInstance | undefined) => {
 };
 
 const confirmFormRef = ref();
-const onSubmtiForm = async (formEl: FormInstance | undefined) => {
+const onSubmitForm = async (formEl: FormInstance | undefined) => {
     if (!formEl) return;
     formEl.validate(async (valid) => {
         if (!valid) return;
@@ -274,7 +272,7 @@ const onSubmtiForm = async (formEl: FormInstance | undefined) => {
         confirmFormRef.value!.acceptParams(params);
     });
 };
-const submtiForm = async () => {
+const submitForm = async () => {
     let param = {
         timeout: form.timeout + '',
         maxclients: form.maxclients + '',
@@ -294,10 +292,15 @@ const submtiForm = async () => {
 
 const getDefaultConfig = async () => {
     loading.value = true;
-    const res = await GetAppDefaultConfig('redis');
-    redisConf.value = res.data;
-    useOld.value = true;
-    loading.value = false;
+    await GetAppDefaultConfig('redis', '')
+        .then((res) => {
+            redisConf.value = res.data;
+            useOld.value = true;
+            loading.value = false;
+        })
+        .catch(() => {
+            loading.value = false;
+        });
 };
 
 const onSaveFile = async () => {
@@ -308,20 +311,21 @@ const onSaveFile = async () => {
     };
     confirmDialogRef.value!.acceptParams(params);
 };
-const submtiFile = async () => {
+const submitFile = async () => {
     let param = {
+        type: 'redis',
+        database: redisName.value,
         file: redisConf.value,
-        restartNow: true,
     };
     loading.value = true;
-    await updateRedisConfByFile(param)
+    await updateDBFile(param)
         .then(() => {
             useOld.value = false;
             loading.value = false;
             MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
         })
         .catch(() => {
-            loading.value = true;
+            loading.value = false;
         });
 };
 
@@ -335,11 +339,9 @@ const loadform = async () => {
 };
 
 const loadConfFile = async () => {
-    const pathRes = await loadBaseDir();
-    let path = `${pathRes.data}/apps/redis/${redisName.value}/conf/redis.conf`;
     useOld.value = false;
     loading.value = true;
-    await LoadFile({ path: path })
+    await loadDBFile('redis-conf', redisName.value)
         .then((res) => {
             loading.value = false;
             redisConf.value = res.data;

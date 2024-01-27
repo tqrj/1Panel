@@ -18,8 +18,8 @@
                         <TableSetting @search="search()" />
                         <div class="search-button">
                             <el-input
-                                v-model="searchName"
                                 clearable
+                                v-model="searchName"
                                 @clear="search()"
                                 suffix-icon="Search"
                                 @keyup.enter="search()"
@@ -70,11 +70,14 @@
                 </ComplexTable>
             </template>
         </LayoutContent>
+
+        <OpDialog ref="opRef" @search="search" />
         <OperatorDialog @search="search" ref="dialogRef" />
     </div>
 </template>
 
 <script lang="ts" setup>
+import OpDialog from '@/components/del-dialog/index.vue';
 import TableSetting from '@/components/table-setting/index.vue';
 import OperatorDialog from '@/views/container/repo/operator/index.vue';
 import { reactive, onMounted, ref } from 'vue';
@@ -83,17 +86,19 @@ import { Container } from '@/api/interface/container';
 import { checkRepoStatus, deleteImageRepo, loadDockerStatus, searchImageRepo } from '@/api/modules/container';
 import i18n from '@/lang';
 import router from '@/routers';
-import { ElMessageBox } from 'element-plus';
 
 const loading = ref();
 const data = ref();
 const selects = ref<any>([]);
 const paginationConfig = reactive({
+    cacheSizeKey: 'image-repo-page-size',
     currentPage: 1,
     pageSize: 10,
     total: 0,
 });
 const searchName = ref();
+
+const opRef = ref();
 
 const dockerStatus = ref('Running');
 const loadStatus = async () => {
@@ -148,12 +153,16 @@ const onOpenDialog = async (
 };
 
 const onDelete = async (row: Container.RepoInfo) => {
-    ElMessageBox.confirm(i18n.global.t('commons.msg.delete'), i18n.global.t('commons.button.delete'), {
-        confirmButtonText: i18n.global.t('commons.button.confirm'),
-        cancelButtonText: i18n.global.t('commons.button.cancel'),
-    }).then(async () => {
-        await deleteImageRepo({ ids: [row.id] });
-        search();
+    let ids = [row.id];
+    opRef.value.acceptParams({
+        title: i18n.global.t('commons.button.delete'),
+        names: [row.name],
+        msg: i18n.global.t('commons.msg.operatorHelper', [
+            i18n.global.t('container.repo'),
+            i18n.global.t('commons.button.delete'),
+        ]),
+        api: deleteImageRepo,
+        params: { ids: ids },
     });
 };
 
@@ -173,7 +182,7 @@ const buttons = [
     {
         label: i18n.global.t('commons.button.sync'),
         disabled: (row: Container.RepoInfo) => {
-            return row.downloadUrl === 'docker.io';
+            return row.id === 1;
         },
         click: (row: Container.RepoInfo) => {
             onCheckConn(row);
@@ -182,7 +191,7 @@ const buttons = [
     {
         label: i18n.global.t('commons.button.edit'),
         disabled: (row: Container.RepoInfo) => {
-            return row.downloadUrl === 'docker.io';
+            return row.id === 1;
         },
         click: (row: Container.RepoInfo) => {
             onOpenDialog('edit', row);
@@ -191,7 +200,7 @@ const buttons = [
     {
         label: i18n.global.t('commons.button.delete'),
         disabled: (row: Container.RepoInfo) => {
-            return row.downloadUrl === 'docker.io';
+            return row.id === 1;
         },
         click: (row: Container.RepoInfo) => {
             onDelete(row);

@@ -2,7 +2,7 @@ package constant
 
 const (
 	StatusRunning   = "Running"
-	StatusStoped    = "Stoped"
+	StatusDone      = "Done"
 	StatusWaiting   = "Waiting"
 	StatusSuccess   = "Success"
 	StatusFailed    = "Failed"

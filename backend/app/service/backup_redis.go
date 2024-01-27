@@ -43,7 +43,8 @@ func (u *BackupService) RedisBackup() error {
 			fileName = fmt.Sprintf("%s.tar.gz", timeNow)
 		}
 	}
-	backupDir := fmt.Sprintf("%s/database/redis/%s", localDir, redisInfo.Name)
+	itemDir := fmt.Sprintf("database/redis/%s", redisInfo.Name)
+	backupDir := path.Join(localDir, itemDir)
 	if err := handleRedisBackup(redisInfo, backupDir, fileName); err != nil {
 		return err
 	}
@@ -51,7 +52,7 @@ func (u *BackupService) RedisBackup() error {
 		Type:       "redis",
 		Source:     "LOCAL",
 		BackupType: "LOCAL",
-		FileDir:    backupDir,
+		FileDir:    itemDir,
 		FileName:   fileName,
 	}
 	if err := backupRepo.CreateRecord(record); err != nil {
@@ -111,7 +112,7 @@ func handleRedisBackup(redisInfo *repo.RootInfo, backupDir, fileName string) err
 func handleRedisRecover(redisInfo *repo.RootInfo, recoverFile string, isRollback bool) error {
 	fileOp := files.NewFileOp()
 	if !fileOp.Stat(recoverFile) {
-		return fmt.Errorf("%s file is not exist", recoverFile)
+		return buserr.WithName("ErrFileNotFound", recoverFile)
 	}
 
 	appendonly, err := configGetStr(redisInfo.ContainerName, redisInfo.Password, "appendonly")
@@ -143,7 +144,7 @@ func handleRedisRecover(redisInfo *repo.RootInfo, recoverFile string, isRollback
 				suffix = "tar.gz"
 			}
 		}
-		rollbackFile := fmt.Sprintf("%s/original/database/redis/%s_%s.%s", global.CONF.System.BaseDir, redisInfo.Name, time.Now().Format("20060102150405"), suffix)
+		rollbackFile := path.Join(global.CONF.System.TmpDir, fmt.Sprintf("database/redis/%s_%s.%s", redisInfo.Name, time.Now().Format("20060102150405"), suffix))
 		if err := handleRedisBackup(redisInfo, path.Dir(rollbackFile), path.Base(rollbackFile)); err != nil {
 			return fmt.Errorf("backup database %s for rollback before recover failed, err: %v", redisInfo.Name, err)
 		}

@@ -6,21 +6,27 @@ const (
 	Error       = "Error"
 	Stopped     = "Stopped"
 	Installing  = "Installing"
-	Syncing     = "Syncing"
 	DownloadErr = "DownloadErr"
-	DirNotFound = "DirNotFound"
 	Upgrading   = "Upgrading"
 	UpgradeErr  = "UpgradeErr"
-	PullErr     = "PullErr"
+	Rebuilding  = "Rebuilding"
+	Syncing     = "Syncing"
+	SyncSuccess = "SyncSuccess"
+	SyncErr     = "SyncErr"
 
 	ContainerPrefix = "1Panel-"
 
 	AppNormal   = "Normal"
 	AppTakeDown = "TakeDown"
 
-	AppOpenresty = "openresty"
-	AppMysql     = "mysql"
-	AppRedis     = "redis"
+	AppOpenresty  = "openresty"
+	AppMysql      = "mysql"
+	AppMariaDB    = "mariadb"
+	AppPostgresql = "postgresql"
+	AppRedis      = "redis"
+	AppPostgres   = "postgres"
+	AppMongodb    = "mongodb"
+	AppMemcached  = "memcached"
 
 	AppResourceLocal  = "local"
 	AppResourceRemote = "remote"
@@ -34,16 +40,14 @@ const (
 type AppOperate string
 
 var (
-	Up      AppOperate = "up"
-	Down    AppOperate = "down"
 	Start   AppOperate = "start"
 	Stop    AppOperate = "stop"
 	Restart AppOperate = "restart"
 	Delete  AppOperate = "delete"
 	Sync    AppOperate = "sync"
 	Backup  AppOperate = "backup"
-	Restore AppOperate = "restore"
 	Update  AppOperate = "update"
 	Rebuild AppOperate = "rebuild"
 	Upgrade AppOperate = "upgrade"
+	Reload  AppOperate = "reload"
 )

@@ -6,7 +6,7 @@
                     <el-row>
                         <el-col :span="1"><br /></el-col>
                         <el-col :xs="24" :sm="20" :md="15" :lg="12" :xl="12">
-                            <el-form-item :label="$t('commons.login.username')" prop="userName">
+                            <el-form-item :label="$t('setting.user')" prop="userName">
                                 <el-input disabled v-model="form.userName">
                                     <template #append>
                                         <el-button @click="onChangeUserName()" icon="Setting">
@@ -29,12 +29,13 @@
                             <el-form-item :label="$t('setting.theme')" prop="theme">
                                 <el-radio-group @change="onSave('Theme', form.theme)" v-model="form.theme">
                                     <el-radio-button label="light">
-                                        <el-icon><Sunny /></el-icon>
-                                        {{ $t('setting.light') }}
+                                        <span>{{ $t('setting.light') }}</span>
                                     </el-radio-button>
                                     <el-radio-button label="dark">
-                                        <el-icon><Moon /></el-icon>
-                                        {{ $t('setting.dark') }}
+                                        <span>{{ $t('setting.dark') }}</span>
+                                    </el-radio-button>
+                                    <el-radio-button label="auto">
+                                        <span>{{ $t('setting.auto') }}</span>
                                     </el-radio-button>
                                 </el-radio-group>
                             </el-form-item>
@@ -74,15 +75,16 @@
                                 </span>
                             </el-form-item>
 
-                            <el-form-item :label="$t('setting.timeZone')" prop="timeZone">
-                                <el-input disabled v-model.number="form.timeZone">
+                            <el-form-item :label="$t('setting.defaultNetwork')">
+                                <el-input disabled v-model="form.defaultNetworkVal">
                                     <template #append>
-                                        <el-button @click="onChangeTimeZone" icon="Setting">
+                                        <el-button v-show="!show" @click="onChangeNetwork" icon="Setting">
                                             {{ $t('commons.button.set') }}
                                         </el-button>
                                     </template>
                                 </el-input>
                             </el-form-item>
+
                             <el-form-item :label="$t('setting.systemIP')" prop="systemIP">
                                 <el-input disabled v-if="form.systemIP" v-model="form.systemIP">
                                     <template #append>
@@ -99,15 +101,6 @@
                                     </template>
                                 </el-input>
                             </el-form-item>
-                            <el-form-item :label="$t('setting.syncTime')">
-                                <el-input disabled v-model="form.localTime">
-                                    <template #append>
-                                        <el-button v-show="!show" @click="onChangeNtp" icon="Setting">
-                                            {{ $t('commons.button.set') }}
-                                        </el-button>
-                                    </template>
-                                </el-input>
-                            </el-form-item>
                         </el-col>
                     </el-row>
                 </el-form>
@@ -119,8 +112,7 @@
         <PanelName ref="panelNameRef" @search="search()" />
         <SystemIP ref="systemIPRef" @search="search()" />
         <Timeout ref="timeoutRef" @search="search()" />
-        <TimeZone ref="timezoneRef" @search="search()" />
-        <Ntp ref="ntpRef" @search="search()" />
+        <Network ref="networkRef" @search="search()" />
     </div>
 </template>
 
@@ -137,8 +129,7 @@ import UserName from '@/views/setting/panel/username/index.vue';
 import Timeout from '@/views/setting/panel/timeout/index.vue';
 import PanelName from '@/views/setting/panel/name/index.vue';
 import SystemIP from '@/views/setting/panel/systemip/index.vue';
-import TimeZone from '@/views/setting/panel/timezone/index.vue';
-import Ntp from '@/views/setting/panel/ntp/index.vue';
+import Network from '@/views/setting/panel/default-network/index.vue';
 
 const loading = ref(false);
 const i18n = useI18n();
@@ -159,6 +150,8 @@ const form = reactive({
     theme: '',
     language: '',
     complexityVerification: '',
+    defaultNetwork: '',
+    defaultNetworkVal: '',
 });
 
 const show = ref();
@@ -168,8 +161,7 @@ const passwordRef = ref();
 const panelNameRef = ref();
 const systemIPRef = ref();
 const timeoutRef = ref();
-const ntpRef = ref();
-const timezoneRef = ref();
+const networkRef = ref();
 const unset = ref(i18n.t('setting.unSetting'));
 
 const search = async () => {
@@ -185,6 +177,8 @@ const search = async () => {
     form.theme = res.data.theme;
     form.language = res.data.language;
     form.complexityVerification = res.data.complexityVerification;
+    form.defaultNetwork = res.data.defaultNetwork;
+    form.defaultNetworkVal = res.data.defaultNetwork === 'all' ? i18n.t('commons.table.all') : res.data.defaultNetwork;
 };
 
 const onChangePassword = () => {
@@ -202,11 +196,8 @@ const onChangeTimeout = () => {
 const onChangeSystemIP = () => {
     systemIPRef.value.acceptParams({ systemIP: form.systemIP });
 };
-const onChangeTimeZone = () => {
-    timezoneRef.value.acceptParams({ timeZone: form.timeZone });
-};
-const onChangeNtp = () => {
-    ntpRef.value.acceptParams({ localTime: form.localTime, ntpSite: form.ntpSite });
+const onChangeNetwork = () => {
+    networkRef.value.acceptParams({ defaultNetwork: form.defaultNetwork });
 };
 
 const onSave = async (key: string, val: any) => {

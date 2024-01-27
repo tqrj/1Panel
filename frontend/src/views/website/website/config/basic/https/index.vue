@@ -40,7 +40,12 @@
                                     :key="index"
                                     :label="acme.email"
                                     :value="acme.id"
-                                ></el-option>
+                                >
+                                    <span>
+                                        {{ acme.email }}
+                                        <el-tag class="ml-5">{{ getAccountName(acme.type) }}</el-tag>
+                                    </span>
+                                </el-option>
                             </el-select>
                         </el-form-item>
                         <el-form-item :label="$t('website.ssl')" prop="websiteSSLId" :hide-required-asterisk="true">
@@ -91,7 +96,7 @@
                         </div>
                     </div>
                     <el-form-item :label="' '" v-if="websiteSSL && websiteSSL.id > 0">
-                        <el-descriptions :column="5" border direction="vertical">
+                        <el-descriptions :column="6" border direction="vertical">
                             <el-descriptions-item :label="$t('website.primaryDomain')">
                                 {{ websiteSSL.primaryDomain }}
                             </el-descriptions-item>
@@ -109,6 +114,9 @@
                             </el-descriptions-item>
                             <el-descriptions-item :label="$t('website.expireDate')">
                                 {{ dateFormatSimple(websiteSSL.expireDate) }}
+                            </el-descriptions-item>
+                            <el-descriptions-item :label="$t('website.remark')">
+                                {{ websiteSSL.description }}
                             </el-descriptions-item>
                         </el-descriptions>
                     </el-form-item>
@@ -129,11 +137,7 @@
                         </el-checkbox-group>
                     </el-form-item>
                     <el-form-item prop="algorithm" :label="$t('website.encryptionAlgorithm')">
-                        <el-input
-                            type="textarea"
-                            :autosize="{ minRows: 2, maxRows: 6 }"
-                            v-model.trim="form.algorithm"
-                        ></el-input>
+                        <el-input type="textarea" :rows="3" v-model.trim="form.algorithm"></el-input>
                     </el-form-item>
                     <el-form-item>
                         <el-button type="primary" @click="submit(httpsForm)">
@@ -159,7 +163,7 @@ import { ElMessageBox, FormInstance } from 'element-plus';
 import { computed, onMounted, reactive, ref } from 'vue';
 import i18n from '@/lang';
 import { Rules } from '@/global/form-rules';
-import { dateFormatSimple, getProvider } from '@/utils/util';
+import { dateFormatSimple, getProvider, getAccountName } from '@/utils/util';
 import { MsgSuccess } from '@/utils/message';
 import FileList from '@/components/file-list/index.vue';
 

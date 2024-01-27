@@ -1,7 +1,7 @@
 <template>
     <div v-loading="loading">
         <el-row :gutter="20" v-loading="loading">
-            <el-col :xs="24" :sm="18" :md="8" :lg="8" :xl="8">
+            <el-col :xs="24" :sm="18" :md="16" :lg="16" :xl="16">
                 <el-form
                     :model="form"
                     :rules="rules"
@@ -38,11 +38,7 @@
                             <el-switch v-model="form.noneRef" />
                         </el-form-item>
                         <el-form-item :label="$t('website.accessDomain')" prop="domains">
-                            <el-input
-                                v-model="form.domains"
-                                type="textarea"
-                                :autosize="{ minRows: 6, maxRows: 20 }"
-                            ></el-input>
+                            <el-input v-model="form.domains" type="textarea" :rows="6"></el-input>
                         </el-form-item>
                         <el-form-item :label="$t('website.leechReturn')" prop="return">
                             <el-input v-model="form.return" type="text" :maxlength="35"></el-input>

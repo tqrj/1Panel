@@ -1,6 +1,6 @@
 <template>
     <el-drawer
-        v-model="terminalVisiable"
+        v-model="terminalVisible"
         @close="handleClose"
         :destroy-on-close="true"
         :close-on-click-modal="false"
@@ -43,7 +43,7 @@
             <el-button v-if="!terminalOpen" @click="initTerm(formRef)">
                 {{ $t('commons.button.conn') }}
             </el-button>
-            <el-button v-else @click="handleClose()">{{ $t('commons.button.disconn') }}</el-button>
+            <el-button v-else @click="onClose()">{{ $t('commons.button.disconn') }}</el-button>
             <Terminal style="height: calc(100vh - 302px)" ref="terminalRef"></Terminal>
         </el-form>
     </el-drawer>
@@ -57,7 +57,7 @@ import Terminal from '@/components/terminal/index.vue';
 import DrawerHeader from '@/components/drawer-header/index.vue';
 
 const title = ref();
-const terminalVisiable = ref(false);
+const terminalVisible = ref(false);
 const terminalOpen = ref(false);
 const form = reactive({
     isCustom: false,
@@ -73,7 +73,7 @@ interface DialogProps {
     container: string;
 }
 const acceptParams = async (params: DialogProps): Promise<void> => {
-    terminalVisiable.value = true;
+    terminalVisible.value = true;
     form.containerID = params.containerID;
     title.value = params.container;
     form.isCustom = false;
@@ -95,14 +95,19 @@ const initTerm = (formEl: FormInstance | undefined) => {
             endpoint: '/api/v1/containers/exec',
             args: `containerid=${form.containerID}&user=${form.user}&command=${form.command}`,
             error: '',
+            initCmd: '',
         });
     });
 };
 
-function handleClose() {
+const onClose = () => {
     terminalRef.value?.onClose();
-    terminalVisiable.value = false;
     terminalOpen.value = false;
+};
+
+function handleClose() {
+    onClose();
+    terminalVisible.value = false;
 }
 
 defineExpose({

@@ -11,6 +11,7 @@ type AppSearch struct {
 	Tags      []string `json:"tags"`
 	Type      string   `json:"type"`
 	Recommend bool     `json:"recommend"`
+	Resource  string   `json:"resource"`
 }
 
 type AppInstallCreate struct {
@@ -30,6 +31,7 @@ type AppContainerConfig struct {
 	AllowPort     bool    `json:"allowPort"`
 	EditCompose   bool    `json:"editCompose"`
 	DockerCompose string  `json:"dockerCompose"`
+	HostMode      bool    `json:"hostMode"`
 }
 
 type AppInstalledSearch struct {
@@ -39,6 +41,12 @@ type AppInstalledSearch struct {
 	Tags   []string `json:"tags"`
 	Update bool     `json:"update"`
 	Unused bool     `json:"unused"`
+	All    bool     `json:"all"`
+}
+
+type AppInstalledInfo struct {
+	Key  string `json:"key" validate:"required"`
+	Name string `json:"name"`
 }
 
 type AppBackupSearch struct {
@@ -58,6 +66,7 @@ type AppInstalledOperate struct {
 	ForceDelete  bool                `json:"forceDelete"`
 	DeleteBackup bool                `json:"deleteBackup"`
 	DeleteDB     bool                `json:"deleteDB"`
+	Backup       bool                `json:"backup"`
 }
 
 type AppInstalledUpdate struct {

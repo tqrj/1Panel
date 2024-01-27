@@ -1,7 +1,18 @@
 <template>
-    <el-drawer v-model="drawerVisiable" :destroy-on-close="true" :close-on-click-modal="false" size="50%">
+    <el-drawer
+        v-model="drawerVisible"
+        @close="handleClose"
+        :destroy-on-close="true"
+        :close-on-click-modal="false"
+        size="50%"
+    >
         <template #header>
-            <DrawerHeader :header="title" :resource="dialogData.rowData?.name" :back="handleClose" />
+            <DrawerHeader
+                :header="title"
+                :hideResource="dialogData.title === 'create'"
+                :resource="dialogData.rowData?.name"
+                :back="handleClose"
+            />
         </template>
         <el-form
             ref="formRef"
@@ -13,11 +24,41 @@
         >
             <el-row type="flex" justify="center">
                 <el-col :span="22">
-                    <el-form-item :label="$t('commons.table.name')" prop="name">
-                        <el-input clearable v-model.trim="dialogData.rowData!.name" />
+                    <el-alert
+                        v-if="dialogData.title === 'edit' && isFromApp(dialogData.rowData!)"
+                        :title="$t('container.containerFromAppHelper')"
+                        :closable="false"
+                        type="error"
+                    />
+                    <el-form-item class="mt-5" :label="$t('commons.table.name')" prop="name">
+                        <el-input
+                            :disabled="isFromApp(dialogData.rowData!)"
+                            clearable
+                            v-model.trim="dialogData.rowData!.name"
+                        />
+                        <div v-if="dialogData.title === 'edit' && isFromApp(dialogData.rowData!)">
+                            <span class="input-help">
+                                {{ $t('container.containerFromAppHelper1') }}
+                                <el-button
+                                    style="margin-left: -5px"
+                                    size="small"
+                                    text
+                                    type="primary"
+                                    @click="goRouter()"
+                                >
+                                    <el-icon><Position /></el-icon>
+                                    {{ $t('firewall.quickJump') }}
+                                </el-button>
+                            </span>
+                        </div>
                     </el-form-item>
                     <el-form-item :label="$t('container.image')" prop="image">
-                        <el-select class="widthClass" allow-create filterable v-model="dialogData.rowData!.image">
+                        <el-checkbox v-model="dialogData.rowData!.imageInput" :label="$t('container.input')" />
+                        <el-select
+                            v-if="!dialogData.rowData!.imageInput"
+                            filterable
+                            v-model="dialogData.rowData!.image"
+                        >
                             <el-option
                                 v-for="(item, index) of images"
                                 :key="index"
@@ -25,6 +66,7 @@
                                 :label="item.option"
                             />
                         </el-select>
+                        <el-input v-else v-model="dialogData.rowData!.image" />
                     </el-form-item>
                     <el-form-item prop="forcePull">
                         <el-checkbox v-model="dialogData.rowData!.forcePull">
@@ -40,52 +82,47 @@
                     </el-form-item>
                     <el-form-item v-if="!dialogData.rowData!.publishAllPorts">
                         <el-card class="widthClass">
-                            <table style="width: 100%" class="tab-table">
-                                <tr v-if="dialogData.rowData!.exposedPorts.length !== 0">
-                                    <th scope="col" width="45%" align="left">
-                                        <label>{{ $t('container.server') }}</label>
-                                    </th>
-                                    <th scope="col" width="35%" align="left">
-                                        <label>{{ $t('container.container') }}</label>
-                                    </th>
-                                    <th scope="col" width="20%" align="left">
-                                        <label>{{ $t('commons.table.protocol') }}</label>
-                                    </th>
-                                    <th align="left"></th>
-                                </tr>
-                                <tr v-for="(row, index) in dialogData.rowData!.exposedPorts" :key="index">
-                                    <td width="45%">
-                                        <el-input
-                                            :placeholder="$t('container.serverExample')"
-                                            style="width: 100%"
-                                            v-model="row.host"
-                                        />
-                                    </td>
-                                    <td width="35%">
+                            <el-table
+                                v-if="dialogData.rowData!.exposedPorts.length !== 0"
+                                :data="dialogData.rowData!.exposedPorts"
+                            >
+                                <el-table-column :label="$t('container.server')" min-width="150">
+                                    <template #default="{ row }">
+                                        <el-input :placeholder="$t('container.serverExample')" v-model="row.host" />
+                                    </template>
+                                </el-table-column>
+                                <el-table-column :label="$t('container.container')" min-width="80">
+                                    <template #default="{ row }">
                                         <el-input
                                             :placeholder="$t('container.containerExample')"
-                                            style="width: 100%"
                                             v-model="row.containerPort"
                                         />
-                                    </td>
-                                    <td width="20%">
-                                        <el-select v-model="row.protocol" style="width: 100%">
+                                    </template>
+                                </el-table-column>
+                                <el-table-column :label="$t('commons.table.protocol')" min-width="50">
+                                    <template #default="{ row }">
+                                        <el-select
+                                            v-model="row.protocol"
+                                            style="width: 100%"
+                                            :placeholder="$t('container.serverExample')"
+                                        >
                                             <el-option label="tcp" value="tcp" />
                                             <el-option label="udp" value="udp" />
                                         </el-select>
-                                    </td>
-                                    <td>
-                                        <el-button link style="font-size: 10px" @click="handlePortsDelete(index)">
+                                    </template>
+                                </el-table-column>
+                                <el-table-column min-width="35">
+                                    <template #default="scope">
+                                        <el-button link type="primary" @click="handlePortsDelete(scope.$index)">
                                             {{ $t('commons.button.delete') }}
                                         </el-button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td align="left">
-                                        <el-button @click="handlePortsAdd()">{{ $t('commons.button.add') }}</el-button>
-                                    </td>
-                                </tr>
-                            </table>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+
+                            <el-button class="ml-3 mt-2" @click="handlePortsAdd()">
+                                {{ $t('commons.button.add') }}
+                            </el-button>
                         </el-card>
                     </el-form-item>
                     <el-form-item :label="$t('container.network')" prop="network">
@@ -98,13 +135,92 @@
                             />
                         </el-select>
                     </el-form-item>
-                    <el-form-item :label="$t('container.cmd')" prop="cmdStr">
-                        <el-input :placeholder="$t('container.cmdHelper')" v-model="dialogData.rowData!.cmdStr" />
+                    <el-form-item :label="$t('container.mount')">
+                        <div v-for="(row, index) in dialogData.rowData!.volumes" :key="index" style="width: 100%">
+                            <el-card class="mt-1">
+                                <el-radio-group v-model="row.isVolume">
+                                    <el-radio-button :label="true">{{ $t('container.volumeOption') }}</el-radio-button>
+                                    <el-radio-button :label="false">{{ $t('container.hostOption') }}</el-radio-button>
+                                </el-radio-group>
+                                <el-button
+                                    class="float-right mt-3"
+                                    link
+                                    type="primary"
+                                    @click="handleVolumesDelete(index)"
+                                >
+                                    {{ $t('commons.button.delete') }}
+                                </el-button>
+                                <el-row class="mt-4" :gutter="5">
+                                    <el-col :span="10">
+                                        <el-form-item v-if="row.isVolume" :label="$t('container.volumeOption')">
+                                            <el-select filterable v-model="row.sourceDir">
+                                                <div v-for="(item, indexV) of volumes" :key="indexV">
+                                                    <el-tooltip :hide-after="20" :content="item.option" placement="top">
+                                                        <el-option
+                                                            :value="item.option"
+                                                            :label="item.option.substring(0, 30)"
+                                                        />
+                                                    </el-tooltip>
+                                                </div>
+                                            </el-select>
+                                        </el-form-item>
+                                        <el-form-item v-else :label="$t('container.hostOption')">
+                                            <el-input v-model="row.sourceDir" />
+                                        </el-form-item>
+                                    </el-col>
+                                    <el-col :span="5">
+                                        <el-form-item :label="$t('container.mode')">
+                                            <el-select class="widthClass" filterable v-model="row.mode">
+                                                <el-option value="rw" :label="$t('container.modeRW')" />
+                                                <el-option value="ro" :label="$t('container.modeR')" />
+                                            </el-select>
+                                        </el-form-item>
+                                    </el-col>
+                                    <el-col :span="9">
+                                        <el-form-item :label="$t('container.containerDir')">
+                                            <el-input v-model="row.containerDir" />
+                                        </el-form-item>
+                                    </el-col>
+                                </el-row>
+                            </el-card>
+                        </div>
+                        <el-button @click="handleVolumesAdd()">
+                            {{ $t('commons.button.add') }}
+                        </el-button>
+                    </el-form-item>
+                    <el-form-item label="Command" prop="cmdStr">
+                        <el-input v-model="dialogData.rowData!.cmdStr" :placeholder="$t('container.cmdHelper')" />
+                    </el-form-item>
+                    <el-form-item label="Entrypoint" prop="entrypointStr">
+                        <el-input
+                            v-model="dialogData.rowData!.entrypointStr"
+                            :placeholder="$t('container.entrypointHelper')"
+                        />
                     </el-form-item>
                     <el-form-item prop="autoRemove">
                         <el-checkbox v-model="dialogData.rowData!.autoRemove">
                             {{ $t('container.autoRemove') }}
                         </el-checkbox>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-checkbox v-model="dialogData.rowData!.privileged">
+                            {{ $t('container.privileged') }}
+                        </el-checkbox>
+                        <span class="input-help">{{ $t('container.privilegedHelper') }}</span>
+                    </el-form-item>
+                    <el-form-item :label="$t('container.console')">
+                        <el-checkbox v-model="dialogData.rowData!.tty">{{ $t('container.tty') }}</el-checkbox>
+                        <el-checkbox v-model="dialogData.rowData!.openStdin">
+                            {{ $t('container.openStdin') }}
+                        </el-checkbox>
+                    </el-form-item>
+                    <el-form-item :label="$t('container.restartPolicy')" prop="restartPolicy">
+                        <el-radio-group v-model="dialogData.rowData!.restartPolicy">
+                            <el-radio label="no">{{ $t('container.no') }}</el-radio>
+                            <el-radio label="always">{{ $t('container.always') }}</el-radio>
+                            <el-radio label="on-failure">{{ $t('container.onFailure') }}</el-radio>
+                            <el-radio label="unless-stopped">{{ $t('container.unlessStopped') }}</el-radio>
+                        </el-radio-group>
                     </el-form-item>
                     <el-form-item :label="$t('container.cpuShare')" prop="cpuShares">
                         <el-input class="mini-form-item" v-model.number="dialogData.rowData!.cpuShares" />
@@ -124,75 +240,21 @@
                             {{ $t('container.limitHelper', [limits.cpu]) }}{{ $t('commons.units.core') }}
                         </span>
                     </el-form-item>
-                    <el-form-item :label="$t('container.memoryLimit')" prop="memory">
+                    <el-form-item
+                        :label="$t('container.memoryLimit')"
+                        prop="memory"
+                        :rules="checkFloatNumberRange(0, Number(limits.memory))"
+                    >
                         <el-input class="mini-form-item" v-model="dialogData.rowData!.memory">
                             <template #append><div style="width: 35px">MB</div></template>
                         </el-input>
                         <span class="input-help">{{ $t('container.limitHelper', [limits.memory]) }}MB</span>
                     </el-form-item>
-                    <el-form-item :label="$t('container.mount')">
-                        <el-card style="width: 100%">
-                            <table style="width: 100%" class="tab-table">
-                                <tr v-if="dialogData.rowData!.volumes!.length !== 0">
-                                    <th scope="col" width="39%" align="left">
-                                        <label>{{ $t('container.serverPath') }}</label>
-                                    </th>
-                                    <th scope="col" width="18%" align="left">
-                                        <label>{{ $t('container.mode') }}</label>
-                                    </th>
-                                    <th scope="col" width="39%" align="left">
-                                        <label>{{ $t('container.containerDir') }}</label>
-                                    </th>
-                                    <th align="left"></th>
-                                </tr>
-                                <tr v-for="(row, index) in dialogData.rowData!.volumes" :key="index">
-                                    <td width="39%">
-                                        <el-select
-                                            class="widthClass"
-                                            allow-create
-                                            clearable
-                                            :placeholder="$t('commons.msg.inputOrSelect')"
-                                            filterable
-                                            v-model="row.sourceDir"
-                                        >
-                                            <el-option
-                                                v-for="(item, indexV) of volumes"
-                                                :key="indexV"
-                                                :value="item.option"
-                                                :label="item.option"
-                                            />
-                                        </el-select>
-                                    </td>
-                                    <td width="18%">
-                                        <el-select class="widthClass" filterable v-model="row.mode">
-                                            <el-option value="rw" :label="$t('container.modeRW')" />
-                                            <el-option value="ro" :label="$t('container.modeR')" />
-                                        </el-select>
-                                    </td>
-                                    <td width="39%">
-                                        <el-input v-model="row.containerDir" />
-                                    </td>
-                                    <td>
-                                        <el-button link style="font-size: 10px" @click="handleVolumesDelete(index)">
-                                            {{ $t('commons.button.delete') }}
-                                        </el-button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td align="left">
-                                        <el-button @click="handleVolumesAdd()">
-                                            {{ $t('commons.button.add') }}
-                                        </el-button>
-                                    </td>
-                                </tr>
-                            </table>
-                        </el-card>
-                    </el-form-item>
                     <el-form-item :label="$t('container.tag')" prop="labelsStr">
                         <el-input
                             type="textarea"
                             :placeholder="$t('container.tagHelper')"
-                            :autosize="{ minRows: 2, maxRows: 10 }"
+                            :rows="3"
                             v-model="dialogData.rowData!.labelsStr"
                         />
                     </el-form-item>
@@ -200,24 +262,16 @@
                         <el-input
                             type="textarea"
                             :placeholder="$t('container.tagHelper')"
-                            :autosize="{ minRows: 2, maxRows: 10 }"
+                            :rows="3"
                             v-model="dialogData.rowData!.envStr"
                         />
-                    </el-form-item>
-                    <el-form-item :label="$t('container.restartPolicy')" prop="restartPolicy">
-                        <el-radio-group v-model="dialogData.rowData!.restartPolicy">
-                            <el-radio label="no">{{ $t('container.no') }}</el-radio>
-                            <el-radio label="always">{{ $t('container.always') }}</el-radio>
-                            <el-radio label="on-failure">{{ $t('container.onFailure') }}</el-radio>
-                            <el-radio label="unless-stopped">{{ $t('container.unlessStopped') }}</el-radio>
-                        </el-radio-group>
                     </el-form-item>
                 </el-col>
             </el-row>
         </el-form>
         <template #footer>
             <span class="dialog-footer">
-                <el-button :disabled="loading" @click="drawerVisiable = false">
+                <el-button :disabled="loading" @click="drawerVisible = false">
                     {{ $t('commons.button.cancel') }}
                 </el-button>
                 <el-button :disabled="loading" type="primary" @click="onSubmit(formRef)">
@@ -232,7 +286,7 @@
 import { reactive, ref } from 'vue';
 import { Rules, checkFloatNumberRange, checkNumberRange } from '@/global/form-rules';
 import i18n from '@/lang';
-import { ElForm } from 'element-plus';
+import { ElForm, ElMessageBox } from 'element-plus';
 import DrawerHeader from '@/components/drawer-header/index.vue';
 import {
     listImage,
@@ -241,10 +295,12 @@ import {
     updateContainer,
     loadResourceLimit,
     listNetwork,
+    searchContainer,
 } from '@/api/modules/container';
 import { Container } from '@/api/interface/container';
 import { MsgError, MsgSuccess } from '@/utils/message';
 import { checkIpV4V6, checkPort } from '@/utils/util';
+import router from '@/routers';
 
 const loading = ref(false);
 interface DialogProps {
@@ -254,7 +310,7 @@ interface DialogProps {
 }
 
 const title = ref<string>('');
-const drawerVisiable = ref(false);
+const drawerVisible = ref(false);
 
 const dialogData = ref<DialogProps>({
     title: '',
@@ -270,6 +326,17 @@ const acceptParams = (params: DialogProps): void => {
             itemCmd += `'${item}' `;
         }
         dialogData.value.rowData.cmdStr = itemCmd ? itemCmd.substring(0, itemCmd.length - 1) : '';
+
+        let itemEntrypoint = '';
+        if (dialogData.value.rowData?.entrypoint) {
+            for (const item of dialogData.value.rowData.entrypoint) {
+                itemEntrypoint += `'${item}' `;
+            }
+        }
+
+        dialogData.value.rowData.entrypointStr = itemEntrypoint
+            ? itemEntrypoint.substring(0, itemEntrypoint.length - 1)
+            : '';
         dialogData.value.rowData.labels = dialogData.value.rowData.labels || [];
         dialogData.value.rowData.env = dialogData.value.rowData.env || [];
         dialogData.value.rowData.labelsStr = dialogData.value.rowData.labels.join('\n');
@@ -288,7 +355,7 @@ const acceptParams = (params: DialogProps): void => {
     loadImageOptions();
     loadVolumeOptions();
     loadNetworkOptions();
-    drawerVisiable.value = true;
+    drawerVisible.value = true;
 };
 const emit = defineEmits<{ (e: 'search'): void }>();
 
@@ -301,13 +368,13 @@ const limits = ref<Container.ResourceLimit>({
 });
 
 const handleClose = () => {
-    drawerVisiable.value = false;
+    emit('search');
+    drawerVisible.value = false;
 };
 
 const rules = reactive({
-    name: [Rules.requiredInput, Rules.volumeName],
-    image: [Rules.requiredSelect],
-    network: [Rules.requiredSelect],
+    name: [Rules.requiredInput, Rules.containerName],
+    image: [Rules.imageName],
     cpuShares: [Rules.integerNumberWith0, checkNumberRange(0, 262144)],
     nanoCPUs: [Rules.floatNumber],
     memory: [Rules.floatNumber],
@@ -330,11 +397,16 @@ const handlePortsDelete = (index: number) => {
     dialogData.value.rowData!.exposedPorts.splice(index, 1);
 };
 
+const goRouter = async () => {
+    router.push({ name: 'AppInstalled' });
+};
+
 const handleVolumesAdd = () => {
     let item = {
         sourceDir: '',
         containerDir: '',
         mode: 'rw',
+        isVolume: true,
     };
     dialogData.value.rowData!.volumes.push(item);
 };
@@ -355,6 +427,18 @@ const loadImageOptions = async () => {
 const loadVolumeOptions = async () => {
     const res = await listVolume();
     volumes.value = res.data;
+    for (const item of dialogData.value.rowData.volumes) {
+        let isVolume = false;
+        for (const v of volumes.value) {
+            if (item.sourceDir == v.option) {
+                item.isVolume = true;
+                break;
+            }
+            if (!isVolume) {
+                item.isVolume = false;
+            }
+        }
+    }
 };
 const loadNetworkOptions = async () => {
     const res = await listNetwork();
@@ -380,15 +464,42 @@ const onSubmit = async (formEl: FormInstance | undefined) => {
         }
         dialogData.value.rowData!.cmd = [];
         if (dialogData.value.rowData?.cmdStr) {
-            let itemCmd = dialogData.value.rowData!.cmdStr.split(`'`);
-            for (const cmd of itemCmd) {
-                if (cmd && cmd !== ' ') {
+            if (dialogData.value.rowData?.cmdStr.indexOf(`'`) !== -1) {
+                let itemCmd = dialogData.value.rowData!.cmdStr.split(`'`);
+                for (const cmd of itemCmd) {
+                    if (cmd && cmd !== ' ') {
+                        dialogData.value.rowData!.cmd.push(cmd);
+                    }
+                }
+            } else {
+                let itemCmd = dialogData.value.rowData!.cmdStr.split(` `);
+                for (const cmd of itemCmd) {
                     dialogData.value.rowData!.cmd.push(cmd);
                 }
             }
         }
-        if (!checkPortValid()) {
-            return;
+        dialogData.value.rowData!.entrypoint = [];
+        if (dialogData.value.rowData?.entrypointStr) {
+            if (dialogData.value.rowData?.entrypointStr.indexOf(`'`) !== -1) {
+                let itemEntrypoint = dialogData.value.rowData!.entrypointStr.split(`'`);
+                for (const entry of itemEntrypoint) {
+                    if (entry && entry !== ' ') {
+                        dialogData.value.rowData!.entrypoint.push(entry);
+                    }
+                }
+            } else {
+                let itemEntrypoint = dialogData.value.rowData!.entrypointStr.split(` `);
+                for (const entry of itemEntrypoint) {
+                    dialogData.value.rowData!.entrypoint.push(entry);
+                }
+            }
+        }
+        if (dialogData.value.rowData!.publishAllPorts) {
+            dialogData.value.rowData!.exposedPorts = [];
+        } else {
+            if (!checkPortValid()) {
+                return;
+            }
         }
         dialogData.value.rowData!.memory = Number(dialogData.value.rowData!.memory);
         dialogData.value.rowData!.nanoCPUs = Number(dialogData.value.rowData!.nanoCPUs);
@@ -400,14 +511,14 @@ const onSubmit = async (formEl: FormInstance | undefined) => {
                     loading.value = false;
                     MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
                     emit('search');
-                    drawerVisiable.value = false;
+                    drawerVisible.value = false;
                 })
                 .catch(() => {
                     loading.value = false;
                 });
         } else {
             ElMessageBox.confirm(
-                i18n.global.t('container.updateContaienrHelper'),
+                i18n.global.t('container.updateContainerHelper'),
                 i18n.global.t('commons.button.edit'),
                 {
                     confirmButtonText: i18n.global.t('commons.button.confirm'),
@@ -420,9 +531,10 @@ const onSubmit = async (formEl: FormInstance | undefined) => {
                             loading.value = false;
                             MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
                             emit('search');
-                            drawerVisiable.value = false;
+                            drawerVisible.value = false;
                         })
                         .catch(() => {
+                            updateContainerID();
                             loading.value = false;
                         });
                 })
@@ -433,19 +545,38 @@ const onSubmit = async (formEl: FormInstance | undefined) => {
     });
 };
 
+const updateContainerID = async () => {
+    let params = {
+        page: 1,
+        pageSize: 1,
+        state: 'all',
+        name: dialogData.value.rowData.name,
+        filters: '',
+        orderBy: 'created_at',
+        order: 'null',
+    };
+    await searchContainer(params).then((res) => {
+        if (res.data.items?.length === 1) {
+            dialogData.value.rowData.containerID = res.data.items[0].containerID;
+            return;
+        }
+    });
+};
+
 const checkPortValid = () => {
     if (dialogData.value.rowData!.exposedPorts.length === 0) {
         return true;
     }
     for (const port of dialogData.value.rowData!.exposedPorts) {
         if (port.host.indexOf(':') !== -1) {
-            port.hostIP = port.host.split(':')[0];
+            port.hostIP = port.host.substring(0, port.host.lastIndexOf(':'));
             if (checkIpV4V6(port.hostIP)) {
                 MsgError(i18n.global.t('firewall.addressFormatError'));
                 return false;
             }
-            port.hostPort = port.host.split(':')[1];
+            port.hostPort = port.host.substring(port.host.lastIndexOf(':') + 1);
         } else {
+            port.hostIP = '';
             port.hostPort = port.host;
         }
         if (port.hostPort.indexOf('-') !== -1) {
@@ -480,6 +611,13 @@ const checkPortValid = () => {
         }
     }
     return true;
+};
+
+const isFromApp = (rowData: Container.ContainerHelper) => {
+    if (rowData && rowData.labels) {
+        return rowData.labels.indexOf('createdBy=Apps') > -1;
+    }
+    return false;
 };
 defineExpose({
     acceptParams,

@@ -4,11 +4,7 @@ import (
 	"context"
 	"github.com/compose-spec/compose-go/loader"
 	"github.com/compose-spec/compose-go/types"
-	"github.com/docker/cli/cli/command"
-	"github.com/docker/cli/cli/flags"
 	"github.com/docker/compose/v2/pkg/api"
-	"github.com/docker/compose/v2/pkg/compose"
-	"github.com/docker/docker/client"
 	"github.com/joho/godotenv"
 	"path"
 	"regexp"
@@ -19,24 +15,6 @@ import (
 type ComposeService struct {
 	api.Service
 	project *types.Project
-}
-
-func NewComposeService(ops ...command.DockerCliOption) (*ComposeService, error) {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return nil, err
-	}
-	ops = append(ops, command.WithAPIClient(apiClient), command.WithDefaultContextStoreConfig())
-	cli, err := command.NewDockerCli(ops...)
-	if err != nil {
-		return nil, err
-	}
-	cliOp := flags.NewClientOptions()
-	if err := cli.Initialize(cliOp); err != nil {
-		return nil, err
-	}
-	service := compose.NewComposeService(cli)
-	return &ComposeService{service, nil}, nil
 }
 
 func (s *ComposeService) SetProject(project *types.Project) {
@@ -111,7 +89,7 @@ func GetComposeProject(projectName, workDir string, yml []byte, env []byte, skip
 	projectName = strings.ToLower(projectName)
 	reg, _ := regexp.Compile(`[^a-z0-9_-]+`)
 	projectName = reg.ReplaceAllString(projectName, "")
-	project, err := loader.Load(details, func(options *loader.Options) {
+	project, err := loader.LoadWithContext(context.Background(), details, func(options *loader.Options) {
 		options.SetProjectName(projectName, true)
 		options.ResolvePaths = true
 		options.SkipNormalization = skipNormalization
@@ -126,4 +104,44 @@ func GetComposeProject(projectName, workDir string, yml []byte, env []byte, skip
 func getComposeTimeout() *time.Duration {
 	timeout := time.Minute * time.Duration(10)
 	return &timeout
+}
+
+type ComposeProject struct {
+	Version  string
+	Services map[string]Service `yaml:"services"`
+}
+
+type Service struct {
+	Image string `yaml:"image"`
+}
+
+func GetDockerComposeImages(projectName string, env, yml []byte) ([]string, error) {
+	var (
+		configFiles []types.ConfigFile
+		images      []string
+	)
+	configFiles = append(configFiles, types.ConfigFile{
+		Filename: "docker-compose.yml",
+		Content:  yml},
+	)
+	envMap, err := godotenv.UnmarshalBytes(env)
+	if err != nil {
+		return nil, err
+	}
+	details := types.ConfigDetails{
+		ConfigFiles: configFiles,
+		Environment: envMap,
+	}
+
+	project, err := loader.LoadWithContext(context.Background(), details, func(options *loader.Options) {
+		options.SetProjectName(projectName, true)
+		options.ResolvePaths = true
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, service := range project.AllServices() {
+		images = append(images, service.Image)
+	}
+	return images, nil
 }

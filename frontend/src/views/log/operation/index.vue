@@ -4,13 +4,13 @@
             <template #toolbar>
                 <el-row>
                     <el-col :xs="24" :sm="16" :md="16" :lg="16" :xl="16">
-                        <el-button type="primary" @click="onChangeRoute('OperationLog')">
+                        <el-button type="primary" class="tag-button" @click="onChangeRoute('OperationLog')">
                             {{ $t('logs.operation') }}
                         </el-button>
-                        <el-button class="no-active-button" @click="onChangeRoute('LoginLog')">
+                        <el-button class="tag-button no-active" @click="onChangeRoute('LoginLog')">
                             {{ $t('logs.login') }}
                         </el-button>
-                        <el-button class="no-active-button" @click="onChangeRoute('SystemLog')">
+                        <el-button class="tag-button no-active" @click="onChangeRoute('SystemLog')">
                             {{ $t('logs.system') }}
                         </el-button>
                     </el-col>
@@ -18,8 +18,8 @@
                         <TableSetting @search="search()" />
                         <div class="search-button">
                             <el-input
-                                v-model="searchName"
                                 clearable
+                                v-model="searchName"
                                 @clear="search()"
                                 suffix-icon="Search"
                                 @keyup.enter="search()"
@@ -36,11 +36,13 @@
                     <el-option :label="$t('commons.table.all')" value=""></el-option>
                     <el-option :label="$t('logs.detail.apps')" value="apps"></el-option>
                     <el-option :label="$t('logs.detail.websites')" value="websites"></el-option>
+                    <el-option :label="$t('logs.detail.runtimes')" value="runtimes"></el-option>
                     <el-option :label="$t('logs.detail.databases')" value="databases"></el-option>
                     <el-option :label="$t('logs.detail.containers')" value="containers"></el-option>
                     <el-option :label="$t('logs.detail.cronjobs')" value="cronjobs"></el-option>
                     <el-option :label="$t('logs.detail.files')" value="files"></el-option>
                     <el-option :label="$t('logs.detail.hosts')" value="hosts"></el-option>
+                    <el-option :label="$t('logs.detail.process')" value="process"></el-option>
                     <el-option :label="$t('logs.detail.logs')" value="logs"></el-option>
                     <el-option :label="$t('logs.detail.settings')" value="settings"></el-option>
                 </el-select>
@@ -122,6 +124,7 @@ const loading = ref();
 const data = ref();
 const confirmDialogRef = ref();
 const paginationConfig = reactive({
+    cacheSizeKey: 'operation-log-page-size',
     currentPage: 1,
     pageSize: 10,
     total: 0,
@@ -188,6 +191,9 @@ const loadDetail = (log: string) => {
     }
     if (log.indexOf('[get]') !== -1) {
         log = log.replace('[get]', '[' + i18n.global.t('commons.button.get') + ']');
+    }
+    if (log.indexOf('[operate]') !== -1) {
+        log = log.replace('[operate]', '[' + i18n.global.t('commons.table.operate') + ']');
     }
     if (log.indexOf('[UserName]') !== -1) {
         return log.replace('[UserName]', '[' + i18n.global.t('commons.login.username') + ']');

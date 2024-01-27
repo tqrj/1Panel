@@ -4,15 +4,17 @@ import "time"
 
 type PageContainer struct {
 	PageInfo
-	Name    string `json:"name"`
-	OrderBy string `json:"orderBy"`
-	Order   string `json:"order"`
-	Filters string `json:"filters"`
+	Name            string `json:"name"`
+	State           string `json:"state" validate:"required,oneof=all created running paused restarting removing exited dead"`
+	OrderBy         string `json:"orderBy"`
+	Order           string `json:"order"`
+	Filters         string `json:"filters"`
+	ExcludeAppStore bool   `json:"excludeAppStore"`
 }
 
 type InspectReq struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
+	ID   string `json:"id" validate:"required"`
+	Type string `json:"type" validate:"required"`
 }
 
 type ContainerInfo struct {
@@ -24,10 +26,15 @@ type ContainerInfo struct {
 	State       string `json:"state"`
 	RunTime     string `json:"runTime"`
 
-	Ports []string `json:"ports"`
+	Network []string `json:"network"`
+	Ports   []string `json:"ports"`
 
 	IsFromApp     bool `json:"isFromApp"`
 	IsFromCompose bool `json:"isFromCompose"`
+
+	AppName        string   `json:"appName"`
+	AppInstallName string   `json:"appInstallName"`
+	Websites       []string `json:"websites"`
 }
 
 type ResourceLimit struct {
@@ -38,15 +45,19 @@ type ResourceLimit struct {
 type ContainerOperate struct {
 	ContainerID     string         `json:"containerID"`
 	ForcePull       bool           `json:"forcePull"`
-	Name            string         `json:"name"`
-	Image           string         `json:"image"`
+	Name            string         `json:"name" validate:"required"`
+	Image           string         `json:"image" validate:"required"`
 	Network         string         `json:"network"`
 	PublishAllPorts bool           `json:"publishAllPorts"`
 	ExposedPorts    []PortHelper   `json:"exposedPorts"`
+	Tty             bool           `json:"tty"`
+	OpenStdin       bool           `json:"openStdin"`
 	Cmd             []string       `json:"cmd"`
+	Entrypoint      []string       `json:"entrypoint"`
 	CPUShares       int64          `json:"cpuShares"`
 	NanoCPUs        float64        `json:"nanoCPUs"`
 	Memory          float64        `json:"memory"`
+	Privileged      bool           `json:"privileged"`
 	AutoRemove      bool           `json:"autoRemove"`
 	Volumes         []VolumeHelper `json:"volumes"`
 	Labels          []string       `json:"labels"`
@@ -61,8 +72,16 @@ type ContainerUpgrade struct {
 }
 
 type ContainerListStats struct {
-	ContainerID   string  `json:"containerID"`
+	ContainerID string `json:"containerID"`
+
+	CPUTotalUsage uint64  `json:"cpuTotalUsage"`
+	SystemUsage   uint64  `json:"systemUsage"`
 	CPUPercent    float64 `json:"cpuPercent"`
+	PercpuUsage   int     `json:"percpuUsage"`
+
+	MemoryCache   uint64  `json:"memoryCache"`
+	MemoryUsage   uint64  `json:"memoryUsage"`
+	MemoryLimit   uint64  `json:"memoryLimit"`
 	MemoryPercent float64 `json:"memoryPercent"`
 }
 
@@ -91,9 +110,13 @@ type PortHelper struct {
 }
 
 type ContainerOperation struct {
-	Name      string `json:"name" validate:"required"`
-	Operation string `json:"operation" validate:"required,oneof=start stop restart kill pause unpause rename remove"`
-	NewName   string `json:"newName"`
+	Names     []string `json:"names" validate:"required"`
+	Operation string   `json:"operation" validate:"required,oneof=start stop restart kill pause unpause remove"`
+}
+
+type ContainerRename struct {
+	Name    string `json:"name" validate:"required"`
+	NewName string `json:"newName" validate:"required"`
 }
 
 type ContainerPrune struct {
@@ -118,13 +141,21 @@ type Network struct {
 	Attachable bool      `json:"attachable"`
 }
 type NetworkCreate struct {
-	Name    string   `json:"name"`
-	Driver  string   `json:"driver"`
-	Options []string `json:"options"`
-	Subnet  string   `json:"subnet"`
-	Gateway string   `json:"gateway"`
-	IPRange string   `json:"ipRange"`
-	Labels  []string `json:"labels"`
+	Name       string          `json:"name" validate:"required"`
+	Driver     string          `json:"driver" validate:"required"`
+	Options    []string        `json:"options"`
+	Ipv4       bool            `json:"ipv4"`
+	Subnet     string          `json:"subnet"`
+	Gateway    string          `json:"gateway"`
+	IPRange    string          `json:"ipRange"`
+	AuxAddress []SettingUpdate `json:"auxAddress"`
+
+	Ipv6         bool            `json:"ipv6"`
+	SubnetV6     string          `json:"subnetV6"`
+	GatewayV6    string          `json:"gatewayV6"`
+	IPRangeV6    string          `json:"ipRangeV6"`
+	AuxAddressV6 []SettingUpdate `json:"auxAddressV6"`
+	Labels       []string        `json:"labels"`
 }
 
 type Volume struct {
@@ -135,13 +166,14 @@ type Volume struct {
 	CreatedAt  time.Time `json:"createdAt"`
 }
 type VolumeCreate struct {
-	Name    string   `json:"name"`
-	Driver  string   `json:"driver"`
+	Name    string   `json:"name" validate:"required"`
+	Driver  string   `json:"driver" validate:"required"`
 	Options []string `json:"options"`
 	Labels  []string `json:"labels"`
 }
 
 type BatchDelete struct {
+	Force bool     `json:"force"`
 	Names []string `json:"names" validate:"required"`
 }
 

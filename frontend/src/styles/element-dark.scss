@@ -180,11 +180,13 @@ html.dark {
 
     .router_card_button {
         .el-radio-button__inner {
-            background: none;
+            background: none !important;
         }
         .el-radio-button__original-radio:checked + .el-radio-button__inner {
             color: #ffffff;
+            background-color: var(--panel-button-active) !important;
             box-shadow: none !important;
+            border: none !important;
         }
     }
     // content-box
@@ -311,5 +313,26 @@ html.dark {
     }
     .el-date-editor .el-range-separator {
         color: var(--panel-button-disabled);
+    }
+
+    .el-input-group__append {
+        border-left: 0;
+        &:hover {
+            color: var(--el-color-primary);
+            background-color: var(--el-color-primary-light-9) !important;
+        }
+        background-color: #212426 !important;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        box-shadow: 0 1px 0 0 var(--el-input-border-color) inset, 0 -1px 0 0 var(--el-input-border-color) inset,
+            -1px 0 0 0 var(--el-input-border-color) inset;
+    }
+
+    .el-collapse-item__header {
+        color: #ffffff;
+    }
+
+    .file-item:hover {
+        background-color: #4f4f4f;
     }
 }

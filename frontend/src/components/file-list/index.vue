@@ -8,7 +8,7 @@
         popper-class="file-list"
     >
         <template #reference>
-            <el-button :icon="Folder" @click="popoverVisible = true"></el-button>
+            <el-button :icon="Folder" :disabled="disabled" @click="popoverVisible = true"></el-button>
         </template>
         <div>
             <el-button class="close" link @click="closePage">
@@ -103,7 +103,7 @@ const rowName = ref('');
 const data = ref();
 const loading = ref(false);
 const paths = ref<string[]>([]);
-const req = reactive({ path: '/', expand: true, page: 1, pageSize: 300 });
+const req = reactive({ path: '/', expand: true, page: 1, pageSize: 300, showHidden: true });
 const selectRow = ref();
 const popoverVisible = ref(false);
 
@@ -113,6 +113,10 @@ const props = defineProps({
         default: '/',
     },
     dir: {
+        type: Boolean,
+        default: false,
+    },
+    disabled: {
         type: Boolean,
         default: false,
     },
@@ -192,13 +196,17 @@ const search = async (req: File.ReqFile) => {
 };
 
 onMounted(() => {
-    req.path = props.path;
+    if (props.path != '') {
+        req.path = props.path;
+    }
     rowName.value = '';
     search(req);
 });
 
 onUpdated(() => {
-    req.path = props.path;
+    if (props.path != '') {
+        req.path = props.path;
+    }
     search(req);
 });
 </script>
